@@ -9,7 +9,7 @@ from solders.instruction import Instruction, AccountMeta
 
 from ..coder import encode_instruction
 
-IDL_PATH = Path(__file__).parent.parent.parent / "idl" / "code_in.json"
+IDL_PATH = Path(__file__).parent.parent / "idl" / "code_in.json"
 with open(IDL_PATH, "r") as f:
     _raw_idl = json.load(f)
 

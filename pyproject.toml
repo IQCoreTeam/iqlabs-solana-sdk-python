@@ -5,15 +5,38 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "iqlabs-solana-sdk"
 version = "0.1.0"
-description = "IQLabs Solana SDK for Python"
+description = "IQLabs Solana SDK for Python — on-chain data storage, database tables, and connections"
 readme = "README.md"
+license = {text = "Apache-2.0"}
 requires-python = ">=3.10"
+
+authors = [
+    {name = "IQLabs", email = "dev@iqlabs.io"},
+]
+
+keywords = ["solana", "blockchain", "sdk", "iqlabs", "on-chain", "inscription"]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+]
+
 dependencies = [
     "solana>=0.32.0",
     "solders>=0.21.0",
     "anchorpy>=0.19.0",
     "pycryptodome>=3.20.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/IQCoreTeam/iqlabs-solana-sdk-python"
+Repository = "https://github.com/IQCoreTeam/iqlabs-solana-sdk-python"
 
 [project.optional-dependencies]
 dev = [
@@ -23,3 +46,6 @@ dev = [
 
 [tool.setuptools.packages.find]
 include = ["iqlabs*"]
+
+[tool.setuptools.package-data]
+iqlabs = ["idl/*.json"]

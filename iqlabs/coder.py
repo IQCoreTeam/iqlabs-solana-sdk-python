@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from solders.pubkey import Pubkey
 
-IDL_PATH = Path(__file__).parent.parent / "idl" / "code_in.json"
+IDL_PATH = Path(__file__).parent / "idl" / "code_in.json"
 with open(IDL_PATH, "r") as f:
     _RAW_IDL = json.load(f)
 
