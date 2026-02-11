@@ -1,0 +1,133 @@
+Metadata-Version: 2.4
+Name: iqlabs-solana-sdk
+Version: 0.1.0
+Summary: IQLabs Solana SDK for Python
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: solana>=0.32.0
+Requires-Dist: solders>=0.21.0
+Requires-Dist: anchorpy>=0.19.0
+Requires-Dist: pycryptodome>=3.20.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.21.0; extra == "dev"
+
+# IQLabs Solana SDK (Python)
+
+Python port of the IQLabs Solana SDK.
+
+## Installation
+
+```bash
+pip install -e .
+```
+
+Or install dependencies manually:
+
+```bash
+pip install solana solders anchorpy pycryptodome
+```
+
+## Quick Start
+
+```python
+import asyncio
+from solders.keypair import Keypair
+from solana.rpc.async_api import AsyncClient
+from iqlabs import reader, writer, set_rpc_url
+
+async def main():
+    # Configure RPC
+    set_rpc_url("https://api.devnet.solana.com")
+
+    connection = AsyncClient("https://api.devnet.solana.com")
+    keypair = Keypair()  # Use your funded keypair
+
+    # Write data
+    signature = await writer.code_in(connection, keypair, ["hello"])
+
+    # Read data back
+    result = await reader.read_code_in(signature)
+    print(result)
+
+asyncio.run(main())
+```
+
+## Running Tests
+
+### Unit Tests (No network required)
+
+```bash
+# Run all tests
+pytest tests/
+
+# Run specific test file
+pytest tests/contract/test_smoke.py -v
+pytest tests/sdk/test_smoke.py -v
+
+# Run tests directly
+python tests/contract/test_smoke.py
+python tests/sdk/test_smoke.py
+```
+
+### Example Scripts
+
+```bash
+# Test concurrency/rate limiter (no network)
+python examples/concurrency_test.py
+
+# Full example (requires funded keypair)
+python examples/hello.py
+```
+
+## Project Structure
+
+```
+iqlabs/
+├── __init__.py              # Main entry point
+├── constants.py             # Global constants
+├── contract/                # Contract definitions
+│   ├── constants.py         # Program IDs, seeds
+│   ├── pda.py              # PDA derivation
+│   ├── instructions.py     # Instruction builders
+│   └── profile.py          # Runtime selection
+└── sdk/
+    ├── constants.py         # SDK constants
+    ├── reader/              # Read operations
+    │   ├── read_code_in.py
+    │   ├── iqdb.py
+    │   └── ...
+    ├── writer/              # Write operations
+    │   ├── code_in.py
+    │   ├── iqdb.py
+    │   └── ...
+    └── utils/               # Utilities
+        ├── connection_helper.py
+        ├── wallet.py
+        ├── seed.py
+        └── ...
+```
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `IQLABS_RPC_ENDPOINT` | Primary RPC URL |
+| `SOLANA_RPC_ENDPOINT` | Fallback RPC URL |
+| `HELIUS_RPC_URL` | Helius RPC URL |
+| `FRESH_RPC_URL` | RPC for fresh data |
+| `RECENT_RPC_URL` | RPC for recent data |
+
+## API Reference
+
+### Writer
+
+- `writer.code_in(connection, signer, chunks, ...)` - Upload data
+- `writer.write_row(...)` - Write to table
+- `writer.request_connection(...)` - Request DM connection
+
+### Reader
+
+- `reader.read_code_in(tx_signature)` - Read uploaded data
+- `reader.read_table_rows(...)` - Read table rows
+- `reader.read_connection(...)` - Check connection status

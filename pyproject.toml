@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iqlabs-solana-sdk"
+version = "0.1.0"
+description = "IQLabs Solana SDK for Python"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "solana>=0.32.0",
+    "solders>=0.21.0",
+    "anchorpy>=0.19.0",
+    "pycryptodome>=3.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["iqlabs*"]
