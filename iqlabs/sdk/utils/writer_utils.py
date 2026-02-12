@@ -127,20 +127,30 @@ async def send_tx(
     signer: Keypair | WalletSigner,
     instructions: Instruction | list[Instruction],
 ) -> str:
+    from solders.message import Message
+
     wallet = to_wallet_signer(signer)
     blockhash_resp = await connection.get_latest_blockhash()
     blockhash = blockhash_resp.value.blockhash
 
     ix_list = instructions if isinstance(instructions, list) else [instructions]
-    tx = Transaction.new_with_payer(ix_list, wallet.public_key)
-    tx.recent_blockhash = blockhash
 
-    signed = await wallet.sign_transaction(tx)
-    result = await connection.send_raw_transaction(bytes(signed))
-    signature = str(result.value)
+    # Use Message.new_with_blockhash for solders >= 0.23
+    msg = Message.new_with_blockhash(ix_list, wallet.public_key, blockhash)
+
+    # Get the actual keypair from wallet
+    if hasattr(wallet, '_keypair'):
+        kp = wallet._keypair
+    else:
+        kp = signer  # Fallback to original signer if it's a Keypair
+
+    tx = Transaction([kp], msg, blockhash)
+
+    result = await connection.send_raw_transaction(bytes(tx))
+    signature = result.value
 
     await connection.confirm_transaction(signature)
-    return signature
+    return str(signature)
 
 
 async def ensure_user_initialized(

@@ -1,9 +1,22 @@
 Metadata-Version: 2.4
 Name: iqlabs-solana-sdk
 Version: 0.1.0
-Summary: IQLabs Solana SDK for Python
+Summary: IQLabs Solana SDK for Python — on-chain data storage, database tables, and connections
+Author-email: IQLabs <dev@iqlabs.io>
+License-Expression: Apache-2.0
+Project-URL: Homepage, https://github.com/IQCoreTeam/iqlabs-solana-sdk-python
+Project-URL: Repository, https://github.com/IQCoreTeam/iqlabs-solana-sdk-python
+Keywords: solana,blockchain,sdk,iqlabs,on-chain,inscription
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Software Development :: Libraries
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
+License-File: LICENSE
 Requires-Dist: solana>=0.32.0
 Requires-Dist: solders>=0.21.0
 Requires-Dist: anchorpy>=0.19.0
@@ -11,6 +24,7 @@ Requires-Dist: pycryptodome>=3.20.0
 Provides-Extra: dev
 Requires-Dist: pytest>=7.0.0; extra == "dev"
 Requires-Dist: pytest-asyncio>=0.21.0; extra == "dev"
+Dynamic: license-file
 
 # IQLabs Solana SDK (Python)
 
@@ -131,3 +145,4 @@ iqlabs/
 - `reader.read_code_in(tx_signature)` - Read uploaded data
 - `reader.read_table_rows(...)` - Read table rows
 - `reader.read_connection(...)` - Check connection status
+# iqlabs-solana-sdk-python

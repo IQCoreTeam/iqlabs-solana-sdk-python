@@ -1,6 +1,8 @@
+LICENSE
 README.md
 pyproject.toml
 iqlabs/__init__.py
+iqlabs/coder.py
 iqlabs/constants.py
 iqlabs/contract/__init__.py
 iqlabs/contract/constants.py
@@ -8,6 +10,7 @@ iqlabs/contract/discriminators.py
 iqlabs/contract/instructions.py
 iqlabs/contract/pda.py
 iqlabs/contract/profile.py
+iqlabs/idl/code_in.json
 iqlabs/sdk/__init__.py
 iqlabs/sdk/constants.py
 iqlabs/sdk/reader/__init__.py
