@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2] - 2026-02-12
+
+### Fixed
+- Fixed Table and Connection account decoders to correctly handle optional fields
+  - `gate_mint` field now properly decoded as `Option<Pubkey>` instead of required `Pubkey`
+  - `writers` field in Table now properly decoded as `Option<Vec<Pubkey>>`
+  - This fixes issues where tables created without gate_mint were incorrectly decoded
+
 ## [0.1.1] - 2026-02-12
 
 ### Fixed

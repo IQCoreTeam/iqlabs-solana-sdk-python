@@ -390,8 +390,13 @@ def decode_account(name: str, data: bytes) -> dict | None:
         elif name == "Table":
             result["column_names"] = decoder.read_vec_bytes()
             result["id_col"] = decoder.read_bytes()
-            result["gate_mint"] = decoder.read_pubkey()
-            result["writers"] = decoder.read_vec_pubkey()
+            result["gate_mint"] = decoder.read_option_pubkey()
+            # Read Option<Vec<Pubkey>> for writers
+            has_writers = decoder.read_u8()
+            if has_writers:
+                result["writers"] = decoder.read_vec_pubkey()
+            else:
+                result["writers"] = []
 
         elif name == "Connection":
             result["db_root_id"] = decoder.read_bytes()
@@ -399,7 +404,7 @@ def decode_account(name: str, data: bytes) -> dict | None:
             result["id_col"] = decoder.read_bytes()
             result["ext_keys"] = decoder.read_vec_bytes()
             result["name"] = decoder.read_bytes()
-            result["gate_mint"] = decoder.read_pubkey()
+            result["gate_mint"] = decoder.read_option_pubkey()
             result["party_a"] = decoder.read_pubkey()
             result["party_b"] = decoder.read_pubkey()
             result["status"] = decoder.read_u8()
