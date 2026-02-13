@@ -1,1 +1,0 @@
-PINOCCHIO_INSTRUCTION_DISCRIMINATORS: dict[str, bytes] = {}

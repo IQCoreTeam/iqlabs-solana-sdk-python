@@ -4,12 +4,11 @@ from typing import Callable
 from solders.pubkey import Pubkey
 
 from ...coder import decode_account
-from ...contract import get_user_inventory_pda, get_user_pda, resolve_contract_runtime
-from ...constants import DEFAULT_CONTRACT_MODE
+from ...contract import get_user_inventory_pda, get_user_pda
 from ..utils.connection_helper import get_connection, get_reader_connection
 from .reader_profile import resolve_read_mode
 from .reading_methods import read_linked_list_result, read_session_result
-from .reader_context import resolve_reader_mode_from_tx, resolve_reader_program_id
+from .reader_context import reader_context
 from .reader_utils import decode_user_inventory_code_in, extract_code_in_payload, fetch_account_transactions
 
 SIG_MIN_LEN = 80
@@ -42,20 +41,18 @@ async def read_session(
     session_pubkey: str,
     read_option: dict,
     speed: str | None = None,
-    mode: str = DEFAULT_CONTRACT_MODE,
     on_progress: Callable[[int], None] | None = None,
 ) -> dict:
     connection = get_reader_connection(read_option.get("freshness"))
     info = await connection.get_account_info(Pubkey.from_string(session_pubkey))
     if not info.value:
         raise ValueError("session account not found")
-    return await read_session_result(session_pubkey, read_option, speed, mode, on_progress)
+    return await read_session_result(session_pubkey, read_option, speed, on_progress)
 
 
 async def read_linked_list_from_tail(
     tail_tx: str,
     read_option: dict,
-    mode: str = DEFAULT_CONTRACT_MODE,
     on_progress: Callable[[int], None] | None = None,
     expected_total_chunks: int | None = None,
 ) -> dict:
@@ -63,19 +60,16 @@ async def read_linked_list_from_tail(
     resp = await connection.get_transaction(tail_tx, max_supported_transaction_version=0)
     if not resp.value:
         raise ValueError("tail transaction not found")
-    return await read_linked_list_result(tail_tx, read_option, mode, on_progress, expected_total_chunks)
+    return await read_linked_list_result(tail_tx, read_option, on_progress, expected_total_chunks)
 
 
 async def read_user_inventory_code_in_from_tx(
     tx,
     speed: str | None = None,
-    mode: str = DEFAULT_CONTRACT_MODE,
     on_progress: Callable[[int], None] | None = None,
 ) -> dict:
     block_time = tx.block_time
-    user_mode = resolve_contract_runtime(mode)
-    resolved_mode = resolve_reader_mode_from_tx(tx) or user_mode
-    payload = extract_code_in_payload(tx, resolved_mode)
+    payload = extract_code_in_payload(tx)
     on_chain_path = payload["on_chain_path"]
     metadata = payload["metadata"]
     inline_data = payload["inline_data"]
@@ -100,17 +94,17 @@ async def read_user_inventory_code_in_from_tx(
     kind = "linked_list" if len(on_chain_path) >= SIG_MIN_LEN else "session"
 
     if kind == "session":
-        result = await read_session(on_chain_path, read_option, speed, resolved_mode, on_progress)
+        result = await read_session(on_chain_path, read_option, speed, on_progress)
         return {"metadata": metadata, "data": result["result"]}
 
-    result = await read_linked_list_from_tail(on_chain_path, read_option, resolved_mode, on_progress, total_chunks)
+    result = await read_linked_list_from_tail(on_chain_path, read_option, on_progress, total_chunks)
     return {"metadata": metadata, "data": result["result"]}
 
 
-async def read_user_state(user_pubkey: str, mode: str = DEFAULT_CONTRACT_MODE) -> dict:
+async def read_user_state(user_pubkey: str) -> dict:
     connection = get_connection()
     user = Pubkey.from_string(user_pubkey)
-    program_id = resolve_reader_program_id(mode)
+    program_id = reader_context.anchor_program_id
     user_state = get_user_pda(user, program_id)
     info = await connection.get_account_info(user_state)
     if not info.value:

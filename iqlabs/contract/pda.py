@@ -14,7 +14,7 @@ from .constants import (
     SEED_TARGET,
     SEED_USER,
 )
-from .profile import get_program_id
+from .profile import PROGRAM_ID
 
 SEED_CONFIG_BYTES = SEED_CONFIG.encode()
 SEED_DB_ROOT_BYTES = SEED_DB_ROOT.encode()
@@ -38,65 +38,65 @@ def _find_pda(seeds: list[bytes], program_id: Pubkey) -> Pubkey:
 
 
 def get_db_root_pda(db_root_id: bytes, program_id: Pubkey | None = None) -> Pubkey:
-    program_id = program_id or get_program_id()
+    program_id = program_id or PROGRAM_ID
     return _find_pda([SEED_DB_ROOT_BYTES, bytes(program_id), db_root_id], program_id)
 
 
 def get_table_pda(db_root: Pubkey, table_seed: bytes, program_id: Pubkey | None = None) -> Pubkey:
-    program_id = program_id or get_program_id()
+    program_id = program_id or PROGRAM_ID
     return _find_pda([SEED_TABLE_BYTES, bytes(program_id), bytes(db_root), table_seed], program_id)
 
 
 def get_instruction_table_pda(db_root: Pubkey, table_seed: bytes, program_id: Pubkey | None = None) -> Pubkey:
-    program_id = program_id or get_program_id()
+    program_id = program_id or PROGRAM_ID
     return _find_pda([SEED_TABLE_BYTES, bytes(program_id), bytes(db_root), table_seed, SEED_INSTRUCTION_BYTES], program_id)
 
 
 def get_connection_table_pda(db_root: Pubkey, connection_seed: bytes, program_id: Pubkey | None = None) -> Pubkey:
-    program_id = program_id or get_program_id()
+    program_id = program_id or PROGRAM_ID
     return _find_pda([SEED_CONNECTION_BYTES, bytes(program_id), bytes(db_root), connection_seed], program_id)
 
 
 def get_connection_instruction_table_pda(db_root: Pubkey, connection_seed: bytes, program_id: Pubkey | None = None) -> Pubkey:
-    program_id = program_id or get_program_id()
+    program_id = program_id or PROGRAM_ID
     return _find_pda([SEED_CONNECTION_BYTES, bytes(program_id), bytes(db_root), connection_seed, SEED_INSTRUCTION_BYTES], program_id)
 
 
 def get_connection_table_ref_pda(db_root: Pubkey, connection_seed: bytes, program_id: Pubkey | None = None) -> Pubkey:
-    program_id = program_id or get_program_id()
+    program_id = program_id or PROGRAM_ID
     return _find_pda([SEED_TABLE_REF_BYTES, bytes(program_id), bytes(db_root), connection_seed], program_id)
 
 
 def get_target_table_ref_pda(db_root: Pubkey, table_seed: bytes, program_id: Pubkey | None = None) -> Pubkey:
-    program_id = program_id or get_program_id()
+    program_id = program_id or PROGRAM_ID
     return _find_pda([SEED_TABLE_REF_BYTES, bytes(program_id), bytes(db_root), table_seed, SEED_TARGET_BYTES], program_id)
 
 
 def get_target_connection_table_ref_pda(db_root: Pubkey, connection_seed: bytes, program_id: Pubkey | None = None) -> Pubkey:
-    program_id = program_id or get_program_id()
+    program_id = program_id or PROGRAM_ID
     return _find_pda([SEED_TABLE_REF_BYTES, bytes(program_id), bytes(db_root), connection_seed, SEED_TARGET_BYTES], program_id)
 
 
 def get_user_pda(user: Pubkey, program_id: Pubkey | None = None) -> Pubkey:
-    program_id = program_id or get_program_id()
+    program_id = program_id or PROGRAM_ID
     return _find_pda([SEED_USER_BYTES, bytes(program_id), bytes(user)], program_id)
 
 
 def get_session_pda(user: Pubkey, seq: int, program_id: Pubkey | None = None) -> Pubkey:
-    program_id = program_id or get_program_id()
+    program_id = program_id or PROGRAM_ID
     return _find_pda([SEED_BUNDLE_BYTES, bytes(program_id), bytes(user), _encode_u64_seed(seq)], program_id)
 
 
 def get_code_account_pda(user: Pubkey, program_id: Pubkey | None = None) -> Pubkey:
-    program_id = program_id or get_program_id()
+    program_id = program_id or PROGRAM_ID
     return _find_pda([SEED_CODE_ACCOUNT_BYTES, bytes(user)], program_id)
 
 
 def get_user_inventory_pda(user: Pubkey, program_id: Pubkey | None = None) -> Pubkey:
-    program_id = program_id or get_program_id()
+    program_id = program_id or PROGRAM_ID
     return _find_pda([SEED_USER_INVENTORY_BYTES, bytes(user)], program_id)
 
 
 def get_server_account_pda(user: Pubkey, server_id: str, program_id: Pubkey | None = None) -> Pubkey:
-    program_id = program_id or get_program_id()
+    program_id = program_id or PROGRAM_ID
     return _find_pda([server_id.encode(), bytes(user)], program_id)

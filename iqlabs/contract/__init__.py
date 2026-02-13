@@ -1,6 +1,5 @@
 from .constants import (
     DEFAULT_ANCHOR_PROGRAM_ID,
-    DEFAULT_PINOCCHIO_PROGRAM_ID,
     SEED_CONFIG,
     SEED_DB_ROOT,
     SEED_TABLE,
@@ -17,7 +16,6 @@ from .constants import (
     CONNECTION_STATUS_BLOCKED,
     CONNECTION_BLOCKER_NONE,
 )
-from .discriminators import PINOCCHIO_INSTRUCTION_DISCRIMINATORS
 from .instructions import (
     InstructionBuilder,
     create_instruction_builder,
@@ -59,4 +57,4 @@ from .pda import (
     get_user_inventory_pda,
     get_server_account_pda,
 )
-from .profile import resolve_contract_runtime, get_program_id
+from .profile import PROGRAM_ID

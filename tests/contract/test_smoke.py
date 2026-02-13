@@ -4,7 +4,7 @@ from solders.keypair import Keypair
 
 from iqlabs.contract import (
     DEFAULT_ANCHOR_PROGRAM_ID,
-    DEFAULT_PINOCCHIO_PROGRAM_ID,
+    PROGRAM_ID,
     create_instruction_builder,
     create_session_instruction,
     get_code_account_pda,
@@ -12,8 +12,6 @@ from iqlabs.contract import (
     get_session_pda,
     get_user_pda,
     get_user_inventory_pda,
-    get_program_id,
-    resolve_contract_runtime,
     user_initialize_instruction,
 )
 
@@ -71,20 +69,8 @@ def test_user_initialize_instruction():
     assert str(user_init_ix.program_id) == str(program_id)
 
 
-def test_resolve_contract_runtime():
-    pinocchio_runtime = resolve_contract_runtime("pinocchio")
-    assert pinocchio_runtime == "pinocchio"
-
-    inferred_anchor = resolve_contract_runtime("anything_else")
-    assert inferred_anchor == "anchor"
-
-
-def test_get_program_id():
-    default_anchor_program = get_program_id("anchor")
-    assert str(default_anchor_program) == DEFAULT_ANCHOR_PROGRAM_ID
-
-    default_pinocchio_program = get_program_id("pinocchio")
-    assert str(default_pinocchio_program) == DEFAULT_PINOCCHIO_PROGRAM_ID
+def test_program_id():
+    assert str(PROGRAM_ID) == DEFAULT_ANCHOR_PROGRAM_ID
 
 
 def test_custom_program_id():
@@ -97,7 +83,6 @@ if __name__ == "__main__":
     test_pda_generation()
     test_instruction_builder()
     test_user_initialize_instruction()
-    test_resolve_contract_runtime()
-    test_get_program_id()
+    test_program_id()
     test_custom_program_id()
     print("contract smoke test ok")

@@ -9,14 +9,13 @@ from ...contract import (
     get_connection_table_pda,
     get_db_root_pda,
 )
-from ...constants import DEFAULT_CONTRACT_MODE
 from ..utils.connection_helper import get_connection
 from ..utils.global_fetch import decode_connection_meta
 from ..utils.rate_limiter import create_rate_limiter
 from ..utils.session_speed import resolve_session_speed, SESSION_SPEED_PROFILES
 from ..utils.seed import derive_dm_seed, to_seed_bytes
 from .read_code_in import read_code_in
-from .reader_context import resolve_reader_program_id
+from .reader_context import reader_context
 from .reader_utils import fetch_account_transactions
 
 
@@ -34,11 +33,10 @@ async def read_connection(
     db_root_id: bytes | str,
     party_a: str,
     party_b: str,
-    mode: str = DEFAULT_CONTRACT_MODE,
 ) -> dict:
     connection = get_connection()
     db_root_seed = to_seed_bytes(db_root_id)
-    program_id = resolve_reader_program_id(mode)
+    program_id = reader_context.anchor_program_id
     db_root = get_db_root_pda(db_root_seed, program_id)
     connection_seed = derive_dm_seed(party_a, party_b)
     connection_table = get_connection_table_pda(db_root, connection_seed, program_id)
@@ -58,9 +56,8 @@ async def read_connection(
 async def get_tablelist_from_root(
     connection: AsyncClient,
     db_root_id: bytes | str,
-    mode: str = DEFAULT_CONTRACT_MODE,
 ) -> dict:
-    program_id = resolve_reader_program_id(mode)
+    program_id = reader_context.anchor_program_id
     db_root_seed = to_seed_bytes(db_root_id)
     db_root = get_db_root_pda(db_root_seed, program_id)
 

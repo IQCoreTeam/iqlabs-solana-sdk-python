@@ -3,32 +3,27 @@ from typing import Any
 
 from solders.pubkey import Pubkey
 
-from ...coder import decode_account
-from ...contract import get_session_pda, get_user_pda, resolve_contract_runtime
-from ...constants import DEFAULT_CONTRACT_MODE
+from ...coder import decode_account, decode_instruction
+from ...contract import get_session_pda, get_user_pda
 from ..utils.connection_helper import get_connection
 from ..utils.rate_limiter import create_rate_limiter
 from ..utils.session_speed import resolve_session_speed, SESSION_SPEED_PROFILES
-from .reader_context import reader_context, resolve_reader_mode_from_tx, resolve_reader_program_id
+from .reader_context import reader_context
 
 
 def decode_reader_instruction(ix, account_keys: list[Pubkey]) -> dict | None:
     program_id = account_keys[ix.program_id_index]
-    is_anchor = program_id == reader_context.anchor_program_id
-    is_pinocchio = program_id == reader_context.pinocchio_program_id
-    if not is_anchor and not is_pinocchio:
+    if program_id != reader_context.anchor_program_id:
         return None
     try:
-        return reader_context.decode_instruction(bytes(ix.data))
+        return decode_instruction(bytes(ix.data))
     except Exception:
         return None
 
 
-def decode_user_inventory_code_in(tx, mode: str = DEFAULT_CONTRACT_MODE) -> dict:
+def decode_user_inventory_code_in(tx) -> dict:
     message = tx.transaction.message
     account_keys = message.account_keys
-    user_mode = resolve_contract_runtime(mode)
-    resolved_mode = resolve_reader_mode_from_tx(tx) or user_mode
 
     for ix in message.instructions:
         decoded = decode_reader_instruction(ix, account_keys)
@@ -47,8 +42,8 @@ def decode_user_inventory_code_in(tx, mode: str = DEFAULT_CONTRACT_MODE) -> dict
     raise ValueError("user_inventory_code_in instruction not found")
 
 
-def extract_code_in_payload(tx, mode: str = DEFAULT_CONTRACT_MODE) -> dict:
-    decoded = decode_user_inventory_code_in(tx, mode)
+def extract_code_in_payload(tx) -> dict:
+    decoded = decode_user_inventory_code_in(tx)
     on_chain_path = decoded["on_chain_path"]
     metadata = decoded["metadata"]
 
@@ -81,10 +76,10 @@ async def fetch_account_transactions(account: str | Pubkey, before: str | None =
     return resp.value
 
 
-async def get_session_pda_list(user_pubkey: str, mode: str = DEFAULT_CONTRACT_MODE) -> list[str]:
+async def get_session_pda_list(user_pubkey: str) -> list[str]:
     connection = get_connection()
     user = Pubkey.from_string(user_pubkey)
-    program_id = resolve_reader_program_id(mode)
+    program_id = reader_context.anchor_program_id
     user_state = get_user_pda(user, program_id)
     info = await connection.get_account_info(user_state)
     if not info.value:
@@ -106,12 +101,10 @@ async def fetch_user_connections(
     limit: int | None = None,
     before: str | None = None,
     speed: str | None = None,
-    mode: str | None = None,
 ) -> list[dict]:
     from ..utils.global_fetch import decode_connection_meta
 
-    mode = mode or DEFAULT_CONTRACT_MODE
-    program_id = resolve_reader_program_id(mode)
+    program_id = reader_context.anchor_program_id
     pubkey = Pubkey.from_string(user_pubkey) if isinstance(user_pubkey, str) else user_pubkey
     user_state = get_user_pda(pubkey, program_id)
 

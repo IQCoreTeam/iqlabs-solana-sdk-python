@@ -126,6 +126,7 @@ async def send_tx(
     connection: AsyncClient,
     signer: Keypair | WalletSigner,
     instructions: Instruction | list[Instruction],
+    skip_confirmation: bool = False,
 ) -> str:
     from solders.message import Message
 
@@ -149,7 +150,8 @@ async def send_tx(
     result = await connection.send_raw_transaction(bytes(tx))
     signature = result.value
 
-    await connection.confirm_transaction(signature)
+    if not skip_confirmation:
+        await connection.confirm_transaction(signature)
     return str(signature)
 
 

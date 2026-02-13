@@ -2,14 +2,12 @@ from typing import Callable, Awaitable
 
 from solders.pubkey import Pubkey
 
-from ...constants import DEFAULT_CONTRACT_MODE
 from ..utils.connection_helper import get_reader_connection
 from ..utils.rpc_client import RpcClient
 from ..utils.concurrency import run_with_concurrency
 from ..utils.rate_limiter import create_rate_limiter
 from ..utils.session_speed import SESSION_SPEED_PROFILES, resolve_session_speed
 from .reader_utils import decode_reader_instruction
-from .reader_context import reader_context
 
 
 def _resolve_session_config(speed: str | None = None) -> dict:
@@ -30,43 +28,16 @@ def _extract_anchor_instruction(tx, expected_name: str) -> dict | None:
     return None
 
 
-def _extract_pinocchio_post_chunk(data: bytes) -> dict | None:
-    if len(data) < 22 or data[0] != 0x04:
-        return None
-    offset = 1 + 16
-    index = int.from_bytes(data[offset:offset + 4], "little")
-    offset += 4
-    remaining = data[offset:]
-    if len(remaining) == 0:
-        return None
-    if len(remaining) >= 5:
-        string_len = int.from_bytes(remaining[0:4], "little")
-        payload_end = 4 + string_len
-        if payload_end < len(remaining):
-            chunk = remaining[4:payload_end].decode("utf-8")
-            return {"index": index, "chunk": chunk}
-    if len(remaining) <= 1:
-        return None
-    chunk = remaining[1:].decode("utf-8")
-    return {"index": index, "chunk": chunk}
-
-
 def _extract_post_chunk(tx) -> list[dict]:
     message = tx.transaction.message
     account_keys = message.account_keys
     chunks = []
 
     for ix in message.instructions:
-        program_id = account_keys[ix.program_id_index]
         decoded = decode_reader_instruction(ix, account_keys)
         if decoded and decoded["name"] == "post_chunk":
             data = decoded["data"]
             chunks.append({"index": data["index"], "chunk": data["chunk"]})
-            continue
-        if program_id == reader_context.pinocchio_program_id:
-            parsed = _extract_pinocchio_post_chunk(bytes(ix.data))
-            if parsed:
-                chunks.append(parsed)
 
     return chunks
 
@@ -82,7 +53,6 @@ async def read_session_result(
     session_pubkey: str,
     read_option: dict,
     speed: str | None = None,
-    mode: str = DEFAULT_CONTRACT_MODE,
     on_progress: Callable[[int], None] | None = None,
 ) -> dict:
     connection = get_reader_connection(read_option.get("freshness"))
@@ -180,7 +150,6 @@ async def read_session_result(
 async def read_linked_list_result(
     tail_tx: str,
     read_option: dict,
-    mode: str = DEFAULT_CONTRACT_MODE,
     on_progress: Callable[[int], None] | None = None,
     expected_total_chunks: int | None = None,
 ) -> dict:

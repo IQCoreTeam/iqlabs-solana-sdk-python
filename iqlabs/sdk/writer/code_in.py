@@ -11,11 +11,10 @@ from ...contract import (
     user_inventory_code_in_instruction,
     get_code_account_pda,
     get_user_inventory_pda,
-    get_program_id,
+    PROGRAM_ID,
     get_session_pda,
     get_user_pda,
 )
-from ...constants import DEFAULT_CONTRACT_MODE
 from ..constants import (
     DEFAULT_LINKED_LIST_THRESHOLD,
     DIRECT_METADATA_MAX_BYTES,
@@ -33,7 +32,6 @@ async def prepare_code_in(
     connection: AsyncClient,
     signer: Keypair | WalletSigner,
     chunks: list[str],
-    mode: str = DEFAULT_CONTRACT_MODE,
     filename: str | None = None,
     method: int = 0,
     filetype: str = "",
@@ -44,7 +42,7 @@ async def prepare_code_in(
         raise ValueError("chunks is empty")
 
     wallet = to_wallet_signer(signer)
-    program_id = get_program_id(mode)
+    program_id = PROGRAM_ID
     builder = create_instruction_builder(program_id)
     user = wallet.public_key
     user_state = get_user_pda(user, program_id)
@@ -126,14 +124,13 @@ async def code_in(
     connection: AsyncClient,
     signer: Keypair | WalletSigner,
     chunks: list[str],
-    mode: str = DEFAULT_CONTRACT_MODE,
     filename: str | None = None,
     method: int = 0,
     filetype: str = "",
     on_progress: Callable[[int], None] | None = None,
 ) -> str:
     prepared = await prepare_code_in(
-        connection, signer, chunks, mode, filename, method, filetype, on_progress
+        connection, signer, chunks, filename, method, filetype, on_progress
     )
 
     db_ix = user_inventory_code_in_instruction(

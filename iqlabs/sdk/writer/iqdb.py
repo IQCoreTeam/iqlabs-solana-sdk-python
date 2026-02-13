@@ -15,13 +15,12 @@ from ...contract import (
     get_connection_table_ref_pda,
     get_db_root_pda,
     get_instruction_table_pda,
-    get_program_id,
+    PROGRAM_ID,
     get_target_connection_table_ref_pda,
     get_table_pda,
     get_user_pda,
     request_connection_instruction,
 )
-from ...constants import DEFAULT_CONTRACT_MODE
 from ..utils.ata import resolve_associated_token_account
 from ..utils.global_fetch import (
     decode_connection_meta,
@@ -42,7 +41,7 @@ async def validate_row_json(
     table_seed: bytes | str,
     row_json: str,
     id_col: str | None = None,
-) -> None:
+) -> dict:
     try:
         parsed = json.loads(row_json)
     except Exception:
@@ -62,6 +61,8 @@ async def validate_row_json(
     if required_id not in parsed:
         raise ValueError(f"missing id_col: {required_id}")
 
+    return meta
+
 
 async def resolve_signer_ata(
     connection: AsyncClient,
@@ -79,9 +80,9 @@ async def write_row(
     db_root_id: bytes | str,
     table_seed: bytes | str,
     row_json: str,
-    mode: str = DEFAULT_CONTRACT_MODE,
+    skip_confirmation: bool = False,
 ) -> str:
-    program_id = get_program_id(mode)
+    program_id = PROGRAM_ID
     db_root_seed = to_seed_bytes(db_root_id)
     table_seed_bytes = to_seed_bytes(table_seed)
     db_root = get_db_root_pda(db_root_seed, program_id)
@@ -89,14 +90,12 @@ async def write_row(
     await ensure_db_root_exists(connection, program_id, db_root_seed)
     result = await ensure_table_exists(connection, program_id, db_root_seed, table_seed_bytes)
     table_pda = result["table_pda"]
-    await validate_row_json(connection, program_id, db_root_seed, table_seed_bytes, row_json)
-
-    meta = await fetch_table_meta(connection, program_id, db_root_seed, table_seed_bytes)
+    meta = await validate_row_json(connection, program_id, db_root_seed, table_seed_bytes, row_json)
     if meta["writers"] and signer.pubkey() not in [w for w in meta["writers"]]:
         raise ValueError("signer not in writers")
 
     signer_ata = await resolve_signer_ata(connection, signer, meta.get("gate_mint"))
-    prepared = await prepare_code_in(connection, signer, [row_json], mode)
+    prepared = await prepare_code_in(connection, signer, [row_json])
 
     ix = db_code_in_instruction(
         prepared["builder"],
@@ -120,7 +119,7 @@ async def write_row(
             "session": prepared["session_finalize"],
         },
     )
-    return await send_tx(connection, signer, ix)
+    return await send_tx(connection, signer, ix, skip_confirmation)
 
 
 async def write_connection_row(
@@ -129,9 +128,8 @@ async def write_connection_row(
     db_root_id: bytes | str,
     connection_seed: bytes | str,
     row_json: str,
-    mode: str = DEFAULT_CONTRACT_MODE,
 ) -> str:
-    program_id = get_program_id(mode)
+    program_id = PROGRAM_ID
     db_root_seed = to_seed_bytes(db_root_id)
     connection_seed_bytes = to_seed_bytes(connection_seed)
     db_root = get_db_root_pda(db_root_seed, program_id)
@@ -165,7 +163,7 @@ async def write_connection_row(
     if meta["id_col"] not in parsed:
         raise ValueError(f"missing id_col: {meta['id_col']}")
 
-    prepared = await prepare_code_in(connection, signer, [row_json], mode)
+    prepared = await prepare_code_in(connection, signer, [row_json])
     ix = wallet_connection_code_in_instruction(
         prepared["builder"],
         {
@@ -199,9 +197,8 @@ async def manage_row_data(
     row_json: str,
     table_name: str | bytes | None = None,
     target_tx: str | bytes | None = None,
-    mode: str = DEFAULT_CONTRACT_MODE,
 ) -> str:
-    program_id = get_program_id(mode)
+    program_id = PROGRAM_ID
     db_root_seed = to_seed_bytes(db_root_id)
     seed_bytes = to_seed_bytes(seed)
     db_root = get_db_root_pda(db_root_seed, program_id)
@@ -232,7 +229,7 @@ async def manage_row_data(
             raise ValueError("signer not in writers")
 
         signer_ata = await resolve_signer_ata(connection, signer, meta.get("gate_mint"))
-        prepared = await prepare_code_in(connection, signer, [row_json], mode)
+        prepared = await prepare_code_in(connection, signer, [row_json])
 
         table_name_bytes = table_name.encode("utf-8") if isinstance(table_name, str) else table_name
         target_tx_bytes = target_tx.encode("utf-8") if isinstance(target_tx, str) else target_tx
@@ -265,7 +262,7 @@ async def manage_row_data(
         return await send_tx(connection, signer, ix)
 
     if connection_info.value:
-        return await write_connection_row(connection, signer, db_root_seed, seed_bytes, row_json, mode)
+        return await write_connection_row(connection, signer, db_root_seed, seed_bytes, row_json)
 
     raise ValueError("table/connection not found")
 
@@ -280,9 +277,8 @@ async def request_connection(
     columns: list[str | bytes],
     id_col: str | bytes,
     ext_keys: list[str | bytes],
-    mode: str = DEFAULT_CONTRACT_MODE,
 ) -> str:
-    program_id = get_program_id(mode)
+    program_id = PROGRAM_ID
     builder = create_instruction_builder(program_id)
     requester = signer.pubkey()
     requester_base58 = str(requester)

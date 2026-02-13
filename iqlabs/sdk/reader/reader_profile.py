@@ -1,21 +1,16 @@
 import time
 
-from ...constants import DEFAULT_CONTRACT_MODE
 from ..utils.connection_helper import get_connection
-from .reader_context import resolve_reader_mode_from_tx
 from .reader_utils import decode_reader_instruction
-from ...contract import resolve_contract_runtime
 
 DAY_SECONDS = 86_400
 WEEK_SECONDS = 7 * DAY_SECONDS
 SIG_MIN_LEN = 80
 
 
-def _resolve_on_chain_path(tx, mode: str = DEFAULT_CONTRACT_MODE) -> str:
+def _resolve_on_chain_path(tx) -> str:
     message = tx.transaction.message
     account_keys = message.account_keys
-    user_mode = resolve_contract_runtime(mode)
-    resolved_mode = resolve_reader_mode_from_tx(tx) or user_mode
 
     for ix in message.instructions:
         decoded = decode_reader_instruction(ix, account_keys)
@@ -54,11 +49,11 @@ def resolve_read_mode(on_chain_path: str, block_time: int | None = None) -> dict
     return {"freshness": "archive"}
 
 
-async def decide_read_mode(tx_signature: str, mode: str = DEFAULT_CONTRACT_MODE) -> dict:
+async def decide_read_mode(tx_signature: str) -> dict:
     connection = get_connection()
     resp = await connection.get_transaction(tx_signature, max_supported_transaction_version=0)
     if not resp.value:
         raise ValueError("transaction not found")
     tx = resp.value
-    on_chain_path = _resolve_on_chain_path(tx, mode)
+    on_chain_path = _resolve_on_chain_path(tx)
     return resolve_read_mode(on_chain_path, tx.block_time)

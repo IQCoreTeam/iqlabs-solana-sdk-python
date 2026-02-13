@@ -1,1 +1,0 @@
-DEFAULT_CONTRACT_MODE = "anchor"
