@@ -3,10 +3,8 @@ README.md
 pyproject.toml
 iqlabs/__init__.py
 iqlabs/coder.py
-iqlabs/constants.py
 iqlabs/contract/__init__.py
 iqlabs/contract/constants.py
-iqlabs/contract/discriminators.py
 iqlabs/contract/instructions.py
 iqlabs/contract/pda.py
 iqlabs/contract/profile.py
