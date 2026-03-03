@@ -36,6 +36,7 @@ async def prepare_code_in(
     method: int = 0,
     filetype: str = "",
     on_progress: Callable[[int], None] | None = None,
+    speed: str | None = None,
 ) -> dict:
     total_chunks = len(chunks)
     if total_chunks == 0:
@@ -90,11 +91,11 @@ async def prepare_code_in(
     if not use_inline:
         if not use_session:
             on_chain_path = await upload_linked_list(
-                connection, signer, builder, user, code_account, chunks, method, on_progress
+                connection, signer, builder, user, code_account, chunks, method, on_progress, speed
             )
         else:
             on_chain_path = await upload_session(
-                connection, signer, builder, program_id, user, user_state, seq, chunks, method, on_progress=on_progress
+                connection, signer, builder, program_id, user, user_state, seq, chunks, method, speed=speed, on_progress=on_progress
             )
             session_account = get_session_pda(user, seq, program_id)
             session_finalize = {"seq": seq, "total_chunks": total_chunks}
@@ -128,9 +129,10 @@ async def code_in(
     method: int = 0,
     filetype: str = "",
     on_progress: Callable[[int], None] | None = None,
+    speed: str | None = None,
 ) -> str:
     prepared = await prepare_code_in(
-        connection, signer, chunks, filename, method, filetype, on_progress
+        connection, signer, chunks, filename, method, filetype, on_progress, speed
     )
 
     db_ix = user_inventory_code_in_instruction(

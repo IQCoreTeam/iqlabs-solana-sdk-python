@@ -36,7 +36,7 @@ This is how you store any data (files, text, JSON) on-chain.
 
 Depending on data size, the SDK picks the optimal method:
 
-- **Small data (< 850 bytes)**: store immediately, fastest
+- **Small data (< 700 bytes)**: store immediately, fastest
 - **Medium data (< 8.5 KB)**: split into multiple transactions
 - **Large data (>= 8.5 KB)**: upload in parallel for speed
 

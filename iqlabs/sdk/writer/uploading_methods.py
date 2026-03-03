@@ -107,10 +107,21 @@ async def upload_session(
             },
             {"seq": seq},
         )
-        await send_tx(connection, signer, create_ix)
+        first_ix = post_chunk_instruction(
+            builder,
+            {"user": user, "session": session},
+            {
+                "index": 0,
+                "chunk": chunks[0],
+                "method": method,
+                "decode_break": 0,
+            },
+        )
+        await send_tx(connection, signer, [create_ix, first_ix])
+        completed[0] = 1
 
     limiter = create_rate_limiter(config["max_rps"])
-    payloads = [{"chunk": chunk, "index": index} for index, chunk in enumerate(chunks)]
+    payloads = [{"chunk": chunk, "index": i + 1} for i, chunk in enumerate(chunks[1:])]
 
     async def worker(payload: dict, _idx: int):
         if limiter:
