@@ -20,6 +20,7 @@ from ...contract import (
     get_table_pda,
     get_user_pda,
     request_connection_instruction,
+    update_user_metadata_instruction,
 )
 from ..utils.ata import resolve_associated_token_account
 from ..utils.global_fetch import (
@@ -265,6 +266,35 @@ async def manage_row_data(
         return await write_connection_row(connection, signer, db_root_seed, seed_bytes, row_json)
 
     raise ValueError("table/connection not found")
+
+
+async def update_user_metadata(
+    connection: AsyncClient,
+    signer: Keypair,
+    db_root_id: bytes | str,
+    meta: bytes | str,
+) -> str:
+    program_id = PROGRAM_ID
+    builder = create_instruction_builder(program_id)
+    db_root_seed = to_seed_bytes(db_root_id)
+    db_root = get_db_root_pda(db_root_seed, program_id)
+    user = get_user_pda(signer.pubkey(), program_id)
+    meta_bytes = meta.encode("utf-8") if isinstance(meta, str) else meta
+
+    ix = update_user_metadata_instruction(
+        builder,
+        {
+            "user": user,
+            "db_root": db_root,
+            "signer": signer.pubkey(),
+            "system_program": SYSTEM_PROGRAM_ID,
+        },
+        {
+            "db_root_id": db_root_seed,
+            "meta": meta_bytes,
+        },
+    )
+    return await send_tx(connection, signer, ix)
 
 
 async def request_connection(
