@@ -125,8 +125,19 @@ def wallet_connection_code_in_instruction(builder: InstructionBuilder, accounts:
     return builder.build("wallet_connection_code_in", accounts, args)
 
 
-def db_code_in_instruction(builder: InstructionBuilder, accounts: dict[str, Pubkey | None], args: dict) -> Instruction:
-    return builder.build("db_code_in", accounts, args)
+def db_code_in_instruction(
+    builder: InstructionBuilder,
+    accounts: dict[str, Pubkey | None],
+    args: dict,
+    remaining_accounts: list[Pubkey] | None = None,
+) -> Instruction:
+    ix = builder.build("db_code_in", accounts, args)
+    if remaining_accounts:
+        keys = list(ix.accounts)
+        for pubkey in remaining_accounts:
+            keys.append(AccountMeta(pubkey, is_signer=False, is_writable=False))
+        ix = Instruction(ix.program_id, ix.data, keys)
+    return ix
 
 
 def db_instruction_code_in_instruction(builder: InstructionBuilder, accounts: dict[str, Pubkey | None], args: dict) -> Instruction:

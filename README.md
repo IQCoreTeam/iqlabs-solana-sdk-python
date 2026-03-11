@@ -266,6 +266,24 @@ for conn in connections:
 
 ---
 
+#### `update_user_metadata()`
+
+| **Parameters** | `connection`: AsyncClient<br>`signer`: Keypair<br>`db_root_id`: database ID (bytes or str)<br>`meta`: metadata to store (bytes or str) |
+|----------|--------------------------|
+| **Returns** | Transaction signature (str) |
+
+**Example:**
+```python
+from iqlabs import writer
+
+# Store a codeIn tx signature as user metadata
+tx_sig = await writer.update_user_metadata(
+    connection, signer, 'my-db', meta_tx_signature
+)
+```
+
+---
+
 ### Table Management
 
 #### `write_row()`

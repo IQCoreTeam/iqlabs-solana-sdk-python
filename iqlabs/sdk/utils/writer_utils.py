@@ -147,7 +147,18 @@ async def send_tx(
 
     tx = Transaction([kp], msg, blockhash)
 
-    result = await connection.send_raw_transaction(bytes(tx))
+    try:
+        raw = bytes(tx)
+    except Exception as e:
+        if "too large" in str(e).lower():
+            raise ValueError(
+                "Transaction size exceeded. "
+                "If you are passing many remaining_accounts, reduce the number of accounts "
+                "or store data via inscription and pass the txid instead."
+            ) from e
+        raise
+
+    result = await connection.send_raw_transaction(raw)
     signature = result.value
 
     if not skip_confirmation:

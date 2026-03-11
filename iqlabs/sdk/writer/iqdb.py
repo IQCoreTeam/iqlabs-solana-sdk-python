@@ -82,6 +82,7 @@ async def write_row(
     table_seed: bytes | str,
     row_json: str,
     skip_confirmation: bool = False,
+    remaining_accounts: list[Pubkey] | None = None,
 ) -> str:
     program_id = PROGRAM_ID
     db_root_seed = to_seed_bytes(db_root_id)
@@ -119,6 +120,7 @@ async def write_row(
             "metadata": prepared["metadata"],
             "session": prepared["session_finalize"],
         },
+        remaining_accounts,
     )
     return await send_tx(connection, signer, ix, skip_confirmation)
 
