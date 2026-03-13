@@ -5,8 +5,13 @@ from solders.pubkey import Pubkey
 from solders.system_program import ID as SYSTEM_PROGRAM_ID
 from solders.keypair import Keypair
 
+from solders.instruction import Instruction
+
+from ...coder import decode_account
 from ...contract import (
     create_instruction_builder,
+    create_table_instruction,
+    realloc_account_instruction,
     wallet_connection_code_in_instruction,
     db_instruction_code_in_instruction,
     db_code_in_instruction,
@@ -33,6 +38,105 @@ from ..utils.global_fetch import (
 from ..utils.seed import derive_dm_seed, to_seed_bytes
 from .code_in import prepare_code_in
 from ..utils.writer_utils import send_tx
+from ..constants import DEFAULT_WRITE_FEE_RECEIVER
+
+# ~20 tables worth of extra space per realloc
+_REALLOC_EXTRA = 2048
+# trigger realloc when free bytes drop below this
+_REALLOC_THRESHOLD = 128
+
+
+def _vec_vec_serialized_size(vv: list[bytes]) -> int:
+    return 4 + sum(4 + len(v) for v in vv)
+
+
+def _build_realloc_ix_if_needed(
+    builder,
+    payer: Pubkey,
+    target: Pubkey,
+    account_data: bytes,
+) -> Instruction | None:
+    decoded = decode_account("DbRoot", account_data)
+    if not decoded:
+        return None
+
+    used = (
+        8 + 32
+        + _vec_vec_serialized_size(decoded["table_seeds"])
+        + _vec_vec_serialized_size(decoded["global_table_seeds"])
+    )
+    # id field may not be decoded if account is old, default to 0
+    id_bytes = decoded.get("id", b"")
+    used += 4 + len(id_bytes)
+
+    if len(account_data) - used >= _REALLOC_THRESHOLD:
+        return None
+
+    return realloc_account_instruction(
+        builder,
+        {"payer": payer, "target": target, "system_program": SYSTEM_PROGRAM_ID},
+        {"new_size": len(account_data) + _REALLOC_EXTRA},
+    )
+
+
+async def create_table(
+    connection: AsyncClient,
+    signer: Keypair,
+    db_root_id: bytes | str,
+    table_seed: bytes | str,
+    table_name: bytes | str,
+    column_names: list[bytes | str],
+    id_col: bytes | str,
+    ext_keys: list[bytes | str],
+    gate_mint: Pubkey | None = None,
+    writers: list[Pubkey] | None = None,
+) -> str:
+    program_id = PROGRAM_ID
+    builder = create_instruction_builder(program_id)
+    db_root_seed = to_seed_bytes(db_root_id)
+    table_seed_bytes = to_seed_bytes(table_seed)
+    db_root = get_db_root_pda(db_root_seed, program_id)
+    table = get_table_pda(db_root, table_seed_bytes, program_id)
+    instruction_table = get_instruction_table_pda(db_root, table_seed_bytes, program_id)
+
+    db_root_info = await connection.get_account_info(db_root)
+    if not db_root_info.value:
+        raise ValueError("db_root not found")
+
+    def to_bytes(v: str | bytes) -> bytes:
+        return v.encode("utf-8") if isinstance(v, str) else v
+
+    ixs: list[Instruction] = []
+
+    realloc_ix = _build_realloc_ix_if_needed(
+        builder, signer.pubkey(), db_root, bytes(db_root_info.value.data),
+    )
+    if realloc_ix:
+        ixs.append(realloc_ix)
+
+    ixs.append(create_table_instruction(
+        builder,
+        {
+            "db_root": db_root,
+            "receiver": Pubkey.from_string(DEFAULT_WRITE_FEE_RECEIVER),
+            "signer": signer.pubkey(),
+            "table": table,
+            "instruction_table": instruction_table,
+            "system_program": SYSTEM_PROGRAM_ID,
+        },
+        {
+            "db_root_id": db_root_seed,
+            "table_seed": table_seed_bytes,
+            "table_name": to_bytes(table_name),
+            "column_names": [to_bytes(c) for c in column_names],
+            "id_col": to_bytes(id_col),
+            "ext_keys": [to_bytes(k) for k in ext_keys],
+            "gate_mint_opt": gate_mint,
+            "writers_opt": writers,
+        },
+    ))
+
+    return await send_tx(connection, signer, ixs)
 
 
 async def validate_row_json(

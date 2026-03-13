@@ -30,6 +30,7 @@ from .instructions import (
     initialize_db_root_instruction,
     manage_connection_instruction,
     post_chunk_instruction,
+    realloc_account_instruction,
     request_connection_instruction,
     send_code_instruction,
     server_initialize_instruction,

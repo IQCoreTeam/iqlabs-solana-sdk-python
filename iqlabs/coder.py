@@ -285,6 +285,9 @@ def encode_instruction(name: str, args: dict) -> bytes:
         encoder.write_bytes(args["db_root_id"])
         encoder.write_vec_bytes(args["new_table_seeds"])
 
+    elif name == "realloc_account":
+        encoder.write_u64(args["new_size"])
+
     elif name == "initialize_config":
         encoder.write_bytes(args["merkle_root"])
 

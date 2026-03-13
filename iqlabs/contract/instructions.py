@@ -89,6 +89,10 @@ def post_chunk_instruction(builder: InstructionBuilder, accounts: dict[str, Pubk
     return builder.build("post_chunk", accounts, args)
 
 
+def realloc_account_instruction(builder: InstructionBuilder, accounts: dict[str, Pubkey | None], args: dict) -> Instruction:
+    return builder.build("realloc_account", accounts, args)
+
+
 def request_connection_instruction(builder: InstructionBuilder, accounts: dict[str, Pubkey | None], args: dict) -> Instruction:
     return builder.build("request_connection", accounts, args)
 
