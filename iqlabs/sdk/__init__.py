@@ -1,6 +1,7 @@
 from . import reader
 from . import writer
 from . import utils
+from . import crypto
 from .constants import (
     DEFAULT_LINKED_LIST_THRESHOLD,
     DIRECT_METADATA_MAX_BYTES,

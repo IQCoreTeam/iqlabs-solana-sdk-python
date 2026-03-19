@@ -43,3 +43,12 @@ def to_wallet_signer(signer: Keypair | WalletSigner) -> WalletSigner:
     if _is_wallet_signer(signer):
         return signer
     return KeypairWalletSigner(signer)
+
+
+SignerInput = Keypair | WalletSigner
+
+
+def get_public_key(signer: SignerInput) -> Pubkey:
+    if isinstance(signer, Keypair):
+        return signer.pubkey()
+    return signer.public_key

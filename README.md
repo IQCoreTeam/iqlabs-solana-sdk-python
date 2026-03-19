@@ -11,11 +11,13 @@
    - [User State PDA](#user-state-pda)
    - [Connection PDA](#connection-pda)
    - [Database Tables](#database-tables)
+   - [Encryption (Crypto)](#encryption-crypto)
 
 2. [Function Details](#function-details)
    - [Data Storage and Retrieval](#data-storage-and-retrieval)
    - [Connection Management](#connection-management)
    - [Table Management](#table-management)
+   - [Encryption](#encryption)
    - [Environment Settings](#environment-settings)
 
 2.1. [Advanced Functions](#advanced-functions) (list only)
@@ -93,16 +95,40 @@ Store JSON data in tables like a database.
 
 #### How are tables created?
 
-There is no dedicated "create table" function. The first write via [`write_row()`](#write_row) creates the table automatically.
+You can create tables explicitly with [`create_table()`](#create_table), or implicitly — the first write via [`write_row()`](#write_row) creates the table automatically.
 
 > **Note**: A table is uniquely identified by the combination of `db_root_id` and `table_seed` (table name).
 
 #### Key related functions
 
+- [`create_table()`](#create_table): create a table explicitly
 - [`write_row()`](#write_row): add a new row (creates the table if missing)
 - [`read_table_rows()`](#read_table_rows): read rows from a table
 - [`get_tablelist_from_root()`](#get_tablelist_from_root): list all tables in a database
 - [`fetch_inventory_transactions()`](#fetch_inventory_transactions): list uploaded files
+
+---
+
+### Encryption (Crypto)
+
+The SDK includes a built-in encryption module (`iqlabs.crypto`) for encrypting data before storing it on-chain.
+
+#### Three encryption modes
+
+- **DH Encryption** (single recipient): Ephemeral X25519 ECDH → HKDF-SHA256 → AES-256-GCM. Use when encrypting data for one specific recipient.
+- **Password Encryption**: PBKDF2-SHA256 (250k iterations) → AES-256-GCM. Use for password-protected data that anyone with the password can decrypt.
+- **Multi-recipient Encryption** (PGP-style hybrid): Generates a random content encryption key (CEK), encrypts data once, then wraps the CEK for each recipient via ECDH. Use when encrypting data for multiple recipients.
+
+#### Key derivation
+
+Users can derive a deterministic X25519 keypair from their wallet signature using [`derive_x25519_keypair()`](#derive_x25519_keypair). This means users don't need to manage separate encryption keys — their wallet is the key.
+
+#### Key related functions
+
+- [`derive_x25519_keypair()`](#derive_x25519_keypair): derive encryption keypair from wallet
+- [`dh_encrypt()`](#dh_encrypt) / [`dh_decrypt()`](#dh_decrypt): single-recipient encryption
+- [`password_encrypt()`](#password_encrypt) / [`password_decrypt()`](#password_decrypt): password-based encryption
+- [`multi_encrypt()`](#multi_encrypt) / [`multi_decrypt()`](#multi_decrypt): multi-recipient encryption
 
 ---
 
@@ -152,7 +178,7 @@ print(result['metadata'])  # JSON string with file metadata
 
 #### `request_connection()`
 
-| **Parameters** | `connection`: AsyncClient<br>`signer`: Keypair<br>`db_root_id`: database ID (bytes or str)<br>`party_a`: first user pubkey (str)<br>`party_b`: second user pubkey (str)<br>`table_name`: connection table name (str or bytes)<br>`columns`: column list (list[str or bytes])<br>`id_col`: ID column (str or bytes)<br>`ext_keys`: extension keys (list[str or bytes]) |
+| **Parameters** | `connection`: AsyncClient<br>`signer`: Keypair or WalletSigner<br>`db_root_id`: database ID (bytes or str)<br>`party_a`: first user pubkey (str)<br>`party_b`: second user pubkey (str)<br>`table_name`: connection table name (str or bytes)<br>`columns`: column list (list[str or bytes])<br>`id_col`: ID column (str or bytes)<br>`ext_keys`: extension keys (list[str or bytes]) |
 |----------|--------------------------|
 | **Returns** | Transaction signature (str) |
 
@@ -219,7 +245,7 @@ print(conn_info['status'])  # 'pending' | 'approved' | 'blocked'
 
 #### `write_connection_row()`
 
-| **Parameters** | `connection`: AsyncClient<br>`signer`: Keypair<br>`db_root_id`: database ID (bytes or str)<br>`connection_seed`: connection seed (bytes or str)<br>`row_json`: JSON data (str) |
+| **Parameters** | `connection`: AsyncClient<br>`signer`: Keypair or WalletSigner<br>`db_root_id`: database ID (bytes or str)<br>`connection_seed`: connection seed (bytes or str)<br>`row_json`: JSON data (str) |
 |----------|--------------------------|
 | **Returns** | Transaction signature (str) |
 
@@ -268,7 +294,7 @@ for conn in connections:
 
 #### `update_user_metadata()`
 
-| **Parameters** | `connection`: AsyncClient<br>`signer`: Keypair<br>`db_root_id`: database ID (bytes or str)<br>`meta`: metadata to store (bytes or str) |
+| **Parameters** | `connection`: AsyncClient<br>`signer`: Keypair or WalletSigner<br>`db_root_id`: database ID (bytes or str)<br>`meta`: metadata to store (bytes or str) |
 |----------|--------------------------|
 | **Returns** | Transaction signature (str) |
 
@@ -286,9 +312,27 @@ tx_sig = await writer.update_user_metadata(
 
 ### Table Management
 
+#### `create_table()`
+
+| **Parameters** | `connection`: AsyncClient<br>`signer`: Keypair or WalletSigner<br>`db_root_id`: database ID (bytes or str)<br>`table_seed`: table seed (bytes or str)<br>`table_name`: display name (str or bytes)<br>`column_names`: column names (list[str or bytes])<br>`id_col`: ID column (str or bytes)<br>`ext_keys`: extension keys (list[str or bytes])<br>`gate_mint`: optional SPL token gate (Pubkey)<br>`writers`: optional writer whitelist (list[Pubkey]) |
+|----------|--------------------------|
+| **Returns** | Transaction signature (str) |
+
+**Example:**
+```python
+from iqlabs import writer
+
+await writer.create_table(
+    connection, signer, 'my-db', 'users', 'Users Table',
+    ['name', 'email'], 'user_id', []
+)
+```
+
+---
+
 #### `write_row()`
 
-| **Parameters** | `connection`: AsyncClient<br>`signer`: Keypair<br>`db_root_id`: database ID (bytes or str)<br>`table_seed`: table name (bytes or str)<br>`row_json`: JSON row data (str)<br>`skip_confirmation`: skip tx confirmation (default: False) |
+| **Parameters** | `connection`: AsyncClient<br>`signer`: Keypair or WalletSigner<br>`db_root_id`: database ID (bytes or str)<br>`table_seed`: table name (bytes or str)<br>`row_json`: JSON row data (str)<br>`skip_confirmation`: skip tx confirmation (default: False) |
 |----------|--------------------------|
 | **Returns** | Transaction signature (str) |
 
@@ -374,6 +418,105 @@ for tx in my_files:
 
 ---
 
+### Encryption
+
+#### `derive_x25519_keypair()`
+
+Derive a deterministic X25519 keypair from a wallet signature. The same wallet always produces the same keypair.
+
+| **Parameters** | `sign_message`: async sign function `Callable[[bytes], Awaitable[bytes]]` |
+|----------|--------------------------|
+| **Returns** | dict with `priv_key` (bytes) and `pub_key` (bytes) |
+
+**Example:**
+```python
+from iqlabs import crypto
+
+keypair = await crypto.derive_x25519_keypair(wallet.sign_message)
+pub_hex = keypair['pub_key'].hex()
+```
+
+---
+
+#### `dh_encrypt()`
+
+| **Parameters** | `recipient_pub_hex`: recipient's X25519 public key (hex str)<br>`plaintext`: data to encrypt (bytes) |
+|----------|--------------------------|
+| **Returns** | dict with `sender_pub`, `iv`, `ciphertext` (all hex str) |
+
+#### `dh_decrypt()`
+
+| **Parameters** | `priv_key`: recipient's private key (bytes)<br>`sender_pub_hex`: sender's public key from encrypt result (hex str)<br>`iv_hex`: IV from encrypt result (hex str)<br>`ciphertext_hex`: ciphertext from encrypt result (hex str) |
+|----------|--------------------------|
+| **Returns** | bytes (decrypted plaintext) |
+
+**Example:**
+```python
+from iqlabs import crypto
+
+# Encrypt
+encrypted = crypto.dh_encrypt(recipient_pub_hex, b'secret message')
+
+# Decrypt (recipient side)
+decrypted = crypto.dh_decrypt(
+    recipient_priv_key, encrypted['sender_pub'], encrypted['iv'], encrypted['ciphertext']
+)
+```
+
+---
+
+#### `password_encrypt()`
+
+| **Parameters** | `password`: password (str)<br>`plaintext`: data to encrypt (bytes) |
+|----------|--------------------------|
+| **Returns** | dict with `salt`, `iv`, `ciphertext` (all hex str) |
+
+#### `password_decrypt()`
+
+| **Parameters** | `password`: password (str)<br>`salt_hex`: salt from encrypt result (hex str)<br>`iv_hex`: IV from encrypt result (hex str)<br>`ciphertext_hex`: ciphertext from encrypt result (hex str) |
+|----------|--------------------------|
+| **Returns** | bytes (decrypted plaintext) |
+
+**Example:**
+```python
+from iqlabs import crypto
+
+encrypted = crypto.password_encrypt('my-password', b'secret data')
+decrypted = crypto.password_decrypt(
+    'my-password', encrypted['salt'], encrypted['iv'], encrypted['ciphertext']
+)
+```
+
+---
+
+#### `multi_encrypt()`
+
+| **Parameters** | `recipient_pub_hexes`: recipient public keys (list[str])<br>`plaintext`: data to encrypt (bytes) |
+|----------|--------------------------|
+| **Returns** | dict with `recipients` (list[RecipientEntry]), `iv`, `ciphertext` |
+
+#### `multi_decrypt()`
+
+| **Parameters** | `priv_key`: your private key (bytes)<br>`pub_key_hex`: your public key (hex str)<br>`encrypted`: the MultiEncryptResult dict |
+|----------|--------------------------|
+| **Returns** | bytes (decrypted plaintext) |
+
+**Example:**
+```python
+from iqlabs import crypto
+
+# Encrypt for multiple recipients
+encrypted = crypto.multi_encrypt(
+    [alice_pub_hex, bob_pub_hex, carol_pub_hex],
+    b'group secret'
+)
+
+# Each recipient decrypts with their own key
+plaintext = crypto.multi_decrypt(alice_priv_key, alice_pub_hex, encrypted)
+```
+
+---
+
 ### Environment Settings
 
 #### `set_rpc_url()`
@@ -398,9 +541,11 @@ These functions are advanced/internal, so this doc lists them only. For details,
 - `manage_row_data()` (`writer`)
 - `read_user_state()` (`reader`)
 - `read_inventory_metadata()` (`reader`)
+- `read_user_inventory_code_in_from_tx()` (`reader`)
 - `get_session_pda_list()` (`reader`)
 - `derive_dm_seed()` (`utils`)
 - `to_seed_bytes()` (`utils`)
+- `hex_to_bytes()` / `bytes_to_hex()` / `validate_pub_key()` (`crypto`)
 
 ---
 

@@ -4,7 +4,6 @@ from solana.rpc.async_api import AsyncClient
 from solders.pubkey import Pubkey
 from solders.system_program import ID as SYSTEM_PROGRAM_ID
 from solders.keypair import Keypair
-
 from solders.instruction import Instruction
 
 from ...coder import decode_account
@@ -36,6 +35,7 @@ from ..utils.global_fetch import (
     fetch_table_meta,
 )
 from ..utils.seed import derive_dm_seed, to_seed_bytes
+from ..utils.wallet import SignerInput, get_public_key
 from .code_in import prepare_code_in
 from ..utils.writer_utils import send_tx
 from ..constants import DEFAULT_WRITE_FEE_RECEIVER
@@ -81,7 +81,7 @@ def _build_realloc_ix_if_needed(
 
 async def create_table(
     connection: AsyncClient,
-    signer: Keypair,
+    signer: SignerInput,
     db_root_id: bytes | str,
     table_seed: bytes | str,
     table_name: bytes | str,
@@ -109,7 +109,7 @@ async def create_table(
     ixs: list[Instruction] = []
 
     realloc_ix = _build_realloc_ix_if_needed(
-        builder, signer.pubkey(), db_root, bytes(db_root_info.value.data),
+        builder, get_public_key(signer), db_root, bytes(db_root_info.value.data),
     )
     if realloc_ix:
         ixs.append(realloc_ix)
@@ -119,7 +119,7 @@ async def create_table(
         {
             "db_root": db_root,
             "receiver": Pubkey.from_string(DEFAULT_WRITE_FEE_RECEIVER),
-            "signer": signer.pubkey(),
+            "signer": get_public_key(signer),
             "table": table,
             "instruction_table": instruction_table,
             "system_program": SYSTEM_PROGRAM_ID,
@@ -171,17 +171,17 @@ async def validate_row_json(
 
 async def resolve_signer_ata(
     connection: AsyncClient,
-    signer: Keypair,
+    signer: SignerInput,
     gate_mint: Pubkey | None = None,
 ) -> Pubkey | None:
     if not gate_mint or gate_mint == SYSTEM_PROGRAM_ID:
         return None
-    return await resolve_associated_token_account(connection, signer.pubkey(), gate_mint, require_exists=True)
+    return await resolve_associated_token_account(connection, get_public_key(signer), gate_mint, require_exists=True)
 
 
 async def write_row(
     connection: AsyncClient,
-    signer: Keypair,
+    signer: SignerInput,
     db_root_id: bytes | str,
     table_seed: bytes | str,
     row_json: str,
@@ -197,7 +197,7 @@ async def write_row(
     result = await ensure_table_exists(connection, program_id, db_root_seed, table_seed_bytes)
     table_pda = result["table_pda"]
     meta = await validate_row_json(connection, program_id, db_root_seed, table_seed_bytes, row_json)
-    if meta["writers"] and signer.pubkey() not in [w for w in meta["writers"]]:
+    if meta["writers"] and get_public_key(signer) not in [w for w in meta["writers"]]:
         raise ValueError("signer not in writers")
 
     signer_ata = await resolve_signer_ata(connection, signer, meta.get("gate_mint"))
@@ -207,7 +207,7 @@ async def write_row(
         prepared["builder"],
         {
             "user": prepared["user"],
-            "signer": signer.pubkey(),
+            "signer": get_public_key(signer),
             "user_inventory": prepared["user_inventory"],
             "db_root": db_root,
             "table": table_pda,
@@ -231,7 +231,7 @@ async def write_row(
 
 async def write_connection_row(
     connection: AsyncClient,
-    signer: Keypair,
+    signer: SignerInput,
     db_root_id: bytes | str,
     connection_seed: bytes | str,
     row_json: str,
@@ -259,23 +259,19 @@ async def write_connection_row(
         raise ValueError("row_json must be an object")
 
     meta = decode_connection_meta(bytes(connection_info.value.data))
-    access = evaluate_connection_access(meta, signer.pubkey())
+    access = evaluate_connection_access(meta, get_public_key(signer))
     if not access["allowed"]:
         raise ValueError(access.get("message", "connection not writable"))
 
-    allowed_keys = set(meta["columns"]) | {meta["id_col"]}
-    for key in parsed.keys():
-        if key not in allowed_keys:
-            raise ValueError(f"unknown key: {key}")
-    if meta["id_col"] not in parsed:
-        raise ValueError(f"missing id_col: {meta['id_col']}")
+    # Connection payloads are application-defined (plain or encrypted);
+    # the program doesn't validate columns, so the SDK shouldn't either.
 
     prepared = await prepare_code_in(connection, signer, [row_json])
     ix = wallet_connection_code_in_instruction(
         prepared["builder"],
         {
             "user": prepared["user"],
-            "signer": signer.pubkey(),
+            "signer": get_public_key(signer),
             "user_inventory": prepared["user_inventory"],
             "db_root": db_root,
             "connection_table": connection_table,
@@ -298,7 +294,7 @@ async def write_connection_row(
 
 async def manage_row_data(
     connection: AsyncClient,
-    signer: Keypair,
+    signer: SignerInput,
     db_root_id: bytes | str,
     seed: bytes | str,
     row_json: str,
@@ -332,7 +328,7 @@ async def manage_row_data(
             raise ValueError("instruction table not found")
 
         meta = await fetch_table_meta(connection, program_id, db_root_seed, seed_bytes)
-        if meta["writers"] and signer.pubkey() not in [w for w in meta["writers"]]:
+        if meta["writers"] and get_public_key(signer) not in [w for w in meta["writers"]]:
             raise ValueError("signer not in writers")
 
         signer_ata = await resolve_signer_ata(connection, signer, meta.get("gate_mint"))
@@ -345,7 +341,7 @@ async def manage_row_data(
             prepared["builder"],
             {
                 "user": prepared["user"],
-                "signer": signer.pubkey(),
+                "signer": get_public_key(signer),
                 "user_inventory": prepared["user_inventory"],
                 "db_root": db_root,
                 "table": table,
@@ -376,7 +372,7 @@ async def manage_row_data(
 
 async def update_user_metadata(
     connection: AsyncClient,
-    signer: Keypair,
+    signer: SignerInput,
     db_root_id: bytes | str,
     meta: bytes | str,
 ) -> str:
@@ -384,7 +380,7 @@ async def update_user_metadata(
     builder = create_instruction_builder(program_id)
     db_root_seed = to_seed_bytes(db_root_id)
     db_root = get_db_root_pda(db_root_seed, program_id)
-    user = get_user_pda(signer.pubkey(), program_id)
+    user = get_user_pda(get_public_key(signer), program_id)
     meta_bytes = meta.encode("utf-8") if isinstance(meta, str) else meta
 
     ix = update_user_metadata_instruction(
@@ -392,7 +388,7 @@ async def update_user_metadata(
         {
             "user": user,
             "db_root": db_root,
-            "signer": signer.pubkey(),
+            "signer": get_public_key(signer),
             "system_program": SYSTEM_PROGRAM_ID,
         },
         {
@@ -405,7 +401,7 @@ async def update_user_metadata(
 
 async def request_connection(
     connection: AsyncClient,
-    signer: Keypair,
+    signer: SignerInput,
     db_root_id: bytes | str,
     party_a: str,
     party_b: str,
@@ -416,7 +412,7 @@ async def request_connection(
 ) -> str:
     program_id = PROGRAM_ID
     builder = create_instruction_builder(program_id)
-    requester = signer.pubkey()
+    requester = get_public_key(signer)
     requester_base58 = str(requester)
 
     if requester_base58 != party_a and requester_base58 != party_b:

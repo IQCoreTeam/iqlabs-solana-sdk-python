@@ -19,8 +19,8 @@ def decode_table_meta(data: bytes) -> dict:
     if not decoded:
         raise ValueError("Failed to decode Table account")
     return {
-        "columns": [v.decode("utf-8") for v in decoded["column_names"]],
-        "id_col": decoded["id_col"].decode("utf-8"),
+        "columns": [v.decode("utf-8").rstrip("\x00") for v in decoded["column_names"]],
+        "id_col": decoded["id_col"].decode("utf-8").rstrip("\x00"),
         "gate_mint": decoded["gate_mint"],
         "writers": decoded["writers"],
     }
@@ -31,11 +31,11 @@ def decode_connection_meta(data: bytes) -> dict:
     if not decoded:
         raise ValueError("Failed to decode Connection account")
     return {
-        "db_root_id": decoded["db_root_id"].decode("utf-8"),
-        "columns": [v.decode("utf-8") for v in decoded["column_names"]],
-        "id_col": decoded["id_col"].decode("utf-8"),
-        "ext_keys": [v.decode("utf-8") for v in decoded["ext_keys"]],
-        "name": decoded["name"].decode("utf-8"),
+        "db_root_id": decoded["db_root_id"].decode("utf-8").rstrip("\x00"),
+        "columns": [v.decode("utf-8").rstrip("\x00") for v in decoded["column_names"]],
+        "id_col": decoded["id_col"].decode("utf-8").rstrip("\x00"),
+        "ext_keys": [v.decode("utf-8").rstrip("\x00") for v in decoded["ext_keys"]],
+        "name": decoded["name"].decode("utf-8").rstrip("\x00"),
         "gate_mint": decoded["gate_mint"],
         "party_a": decoded["party_a"],
         "party_b": decoded["party_b"],
@@ -101,14 +101,18 @@ async def fetch_connection_meta(
     return decode_connection_meta(bytes(info.value.data))
 
 
+def resolve_connection_status(status: int) -> str:
+    if status == CONNECTION_STATUS_PENDING:
+        return "pending"
+    if status == CONNECTION_STATUS_APPROVED:
+        return "approved"
+    if status == CONNECTION_STATUS_BLOCKED:
+        return "blocked"
+    return "unknown"
+
+
 def evaluate_connection_access(meta: dict, signer: Pubkey) -> dict:
-    status = ""
-    if meta["status"] == CONNECTION_STATUS_PENDING:
-        status = "pending"
-    elif meta["status"] == CONNECTION_STATUS_APPROVED:
-        status = "approved"
-    elif meta["status"] == CONNECTION_STATUS_BLOCKED:
-        status = "blocked"
+    status = resolve_connection_status(meta["status"])
 
     signer_idx = -1
     if signer == meta["party_a"]:

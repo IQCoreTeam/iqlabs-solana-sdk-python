@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: iqlabs-solana-sdk
-Version: 0.1.8
+Version: 0.1.9
 Summary: IQLabs Solana SDK for Python — on-chain data storage, database tables, and connections
 Author-email: IQLabs <dev@iqlabs.io>
 License-Expression: Apache-2.0
@@ -21,6 +21,7 @@ Requires-Dist: solana>=0.32.0
 Requires-Dist: solders>=0.21.0
 Requires-Dist: anchorpy>=0.19.0
 Requires-Dist: pycryptodome>=3.20.0
+Requires-Dist: cryptography>=41.0.0
 Provides-Extra: dev
 Requires-Dist: pytest>=7.0.0; extra == "dev"
 Requires-Dist: pytest-asyncio>=0.21.0; extra == "dev"

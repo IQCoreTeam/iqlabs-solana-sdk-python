@@ -12,13 +12,9 @@ def derive_seed_bytes(value: str) -> bytes:
     return k.digest()
 
 
-def sort_pubkeys(user_a: str, user_b: str) -> tuple[str, str]:
-    return (user_a, user_b) if user_a < user_b else (user_b, user_a)
-
-
 def derive_dm_seed(user_a: str, user_b: str) -> bytes:
-    sorted_a, sorted_b = sort_pubkeys(user_a, user_b)
-    return derive_seed_bytes(f"{sorted_a}:{sorted_b}")
+    a, b = (user_a, user_b) if user_a < user_b else (user_b, user_a)
+    return derive_seed_bytes(f"{a}:{b}")
 
 
 def to_seed_bytes(value: bytes | str) -> bytes:

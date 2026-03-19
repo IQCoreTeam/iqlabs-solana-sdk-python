@@ -1,7 +1,7 @@
 import time
 
 from ..utils.connection_helper import get_connection
-from .reader_utils import decode_reader_instruction
+from .reader_utils import decode_reader_instruction, CODE_IN_INSTRUCTION_NAMES
 
 DAY_SECONDS = 86_400
 WEEK_SECONDS = 7 * DAY_SECONDS
@@ -16,13 +16,7 @@ def _resolve_on_chain_path(tx) -> str:
         decoded = decode_reader_instruction(ix, account_keys)
         if not decoded:
             continue
-        if decoded["name"] in (
-            "user_inventory_code_in",
-            "user_inventory_code_in_for_free",
-            "db_code_in",
-            "db_instruction_code_in",
-            "wallet_connection_code_in",
-        ):
+        if decoded["name"] in CODE_IN_INSTRUCTION_NAMES:
             return decoded["data"].get("on_chain_path", "")
 
     raise ValueError("user_inventory_code_in instruction not found")

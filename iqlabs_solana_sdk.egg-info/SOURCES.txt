@@ -11,6 +11,12 @@ iqlabs/contract/profile.py
 iqlabs/idl/code_in.json
 iqlabs/sdk/__init__.py
 iqlabs/sdk/constants.py
+iqlabs/sdk/crypto/__init__.py
+iqlabs/sdk/crypto/dh.py
+iqlabs/sdk/crypto/encoding.py
+iqlabs/sdk/crypto/multi.py
+iqlabs/sdk/crypto/password.py
+iqlabs/sdk/crypto/primitives.py
 iqlabs/sdk/reader/__init__.py
 iqlabs/sdk/reader/iqdb.py
 iqlabs/sdk/reader/read_code_in.py

@@ -10,6 +10,14 @@ from ..utils.rate_limiter import create_rate_limiter
 from ..utils.session_speed import resolve_session_speed, SESSION_SPEED_PROFILES
 from .reader_context import reader_context
 
+CODE_IN_INSTRUCTION_NAMES = (
+    "user_inventory_code_in",
+    "user_inventory_code_in_for_free",
+    "db_code_in",
+    "db_instruction_code_in",
+    "wallet_connection_code_in",
+)
+
 
 def decode_reader_instruction(ix, account_keys: list[Pubkey]) -> dict | None:
     program_id = account_keys[ix.program_id_index]
@@ -29,13 +37,7 @@ def decode_user_inventory_code_in(tx) -> dict:
         decoded = decode_reader_instruction(ix, account_keys)
         if not decoded:
             continue
-        if decoded["name"] in (
-            "user_inventory_code_in",
-            "user_inventory_code_in_for_free",
-            "db_code_in",
-            "db_instruction_code_in",
-            "wallet_connection_code_in",
-        ):
+        if decoded["name"] in CODE_IN_INSTRUCTION_NAMES:
             data = decoded["data"]
             return {"on_chain_path": data.get("on_chain_path", ""), "metadata": data.get("metadata", "")}
 
@@ -102,7 +104,7 @@ async def fetch_user_connections(
     before: str | None = None,
     speed: str | None = None,
 ) -> list[dict]:
-    from ..utils.global_fetch import decode_connection_meta
+    from ..utils.global_fetch import decode_connection_meta, resolve_connection_status
 
     program_id = reader_context.anchor_program_id
     pubkey = Pubkey.from_string(user_pubkey) if isinstance(user_pubkey, str) else user_pubkey
@@ -157,8 +159,7 @@ async def fetch_user_connections(
             party_a = str(meta["party_a"])
             party_b = str(meta["party_b"])
 
-            status_num = meta["status"]
-            status = "pending" if status_num == 0 else "approved" if status_num == 1 else "blocked" if status_num == 2 else "pending"
+            status = resolve_connection_status(meta["status"])
             requester = "a" if meta["requester"] == 0 else "b"
             blocker = "a" if meta["blocker"] == 0 else "b" if meta["blocker"] == 1 else "none"
 
