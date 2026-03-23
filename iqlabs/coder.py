@@ -102,6 +102,16 @@ class BorshEncoder:
                 self.write_pubkey(item)
         return self
 
+    def write_option_gate_config(self, value: dict | None) -> "BorshEncoder":
+        if value is None:
+            self.write_u8(0)
+        else:
+            self.write_u8(1)
+            self.write_pubkey(value["mint"])
+            self.write_u64(value.get("amount", 1))
+            self.write_u8(value.get("gate_type", 0))
+        return self
+
     def write_option_session_finalize(self, value: dict | None) -> "BorshEncoder":
         if value is None:
             self.write_u8(0)
@@ -172,6 +182,13 @@ class BorshDecoder:
     def read_option_pubkey(self) -> Pubkey | None:
         is_some = self.read_u8()
         return self.read_pubkey() if is_some else None
+
+    def read_gate_config(self) -> dict:
+        return {
+            "mint": self.read_pubkey(),
+            "amount": self.read_u64(),
+            "gate_type": self.read_u8(),
+        }
 
     def read_vec_bytes(self) -> list[bytes]:
         length = self.read_u32()
@@ -265,7 +282,7 @@ def encode_instruction(name: str, args: dict) -> bytes:
         encoder.write_vec_bytes(args["column_names"])
         encoder.write_bytes(args["id_col"])
         encoder.write_vec_bytes(args["ext_keys"])
-        encoder.write_option_pubkey(args.get("gate_mint_opt"))
+        encoder.write_option_gate_config(args.get("gate_opt"))
         encoder.write_vec_pubkey(args.get("writers_opt"))
 
     elif name == "update_table":
@@ -275,6 +292,7 @@ def encode_instruction(name: str, args: dict) -> bytes:
         encoder.write_vec_bytes(args["column_names"])
         encoder.write_bytes(args["id_col"])
         encoder.write_vec_bytes(args["ext_keys"])
+        encoder.write_option_gate_config(args.get("gate_opt"))
         encoder.write_vec_pubkey(args.get("writers_opt"))
 
     elif name == "update_user_metadata":
@@ -393,13 +411,11 @@ def decode_account(name: str, data: bytes) -> dict | None:
         elif name == "Table":
             result["column_names"] = decoder.read_vec_bytes()
             result["id_col"] = decoder.read_bytes()
-            result["gate_mint"] = decoder.read_option_pubkey()
-            # Read Option<Vec<Pubkey>> for writers
-            has_writers = decoder.read_u8()
-            if has_writers:
-                result["writers"] = decoder.read_vec_pubkey()
-            else:
-                result["writers"] = []
+            result["ext_keys"] = decoder.read_vec_bytes()
+            result["name"] = decoder.read_bytes()
+            result["last_timestamp"] = decoder.read_u64()
+            result["gate"] = decoder.read_gate_config()
+            result["writers"] = decoder.read_vec_pubkey()
 
         elif name == "Connection":
             result["db_root_id"] = decoder.read_bytes()
@@ -407,7 +423,7 @@ def decode_account(name: str, data: bytes) -> dict | None:
             result["id_col"] = decoder.read_bytes()
             result["ext_keys"] = decoder.read_vec_bytes()
             result["name"] = decoder.read_bytes()
-            result["gate_mint"] = decoder.read_option_pubkey()
+            result["gate"] = decoder.read_gate_config()
             result["party_a"] = decoder.read_pubkey()
             result["party_b"] = decoder.read_pubkey()
             result["status"] = decoder.read_u8()

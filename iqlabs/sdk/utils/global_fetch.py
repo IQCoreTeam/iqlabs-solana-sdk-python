@@ -21,7 +21,7 @@ def decode_table_meta(data: bytes) -> dict:
     return {
         "columns": [v.decode("utf-8").rstrip("\x00") for v in decoded["column_names"]],
         "id_col": decoded["id_col"].decode("utf-8").rstrip("\x00"),
-        "gate_mint": decoded["gate_mint"],
+        "gate": decoded["gate"],
         "writers": decoded["writers"],
     }
 
@@ -36,7 +36,7 @@ def decode_connection_meta(data: bytes) -> dict:
         "id_col": decoded["id_col"].decode("utf-8").rstrip("\x00"),
         "ext_keys": [v.decode("utf-8").rstrip("\x00") for v in decoded["ext_keys"]],
         "name": decoded["name"].decode("utf-8").rstrip("\x00"),
-        "gate_mint": decoded["gate_mint"],
+        "gate": decoded["gate"],
         "party_a": decoded["party_a"],
         "party_b": decoded["party_b"],
         "status": decoded["status"],

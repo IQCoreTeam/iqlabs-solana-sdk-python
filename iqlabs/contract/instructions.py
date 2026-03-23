@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+from enum import IntEnum
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Any
@@ -8,6 +9,12 @@ from solders.pubkey import Pubkey
 from solders.instruction import Instruction, AccountMeta
 
 from ..coder import encode_instruction
+
+
+class GateType(IntEnum):
+    """Gate type enum for user-friendly gate configuration."""
+    TOKEN = 0       # Exact token mint match + minimum amount check
+    COLLECTION = 1  # NFT collection check via Metaplex metadata verification
 
 IDL_PATH = Path(__file__).parent.parent / "idl" / "code_in.json"
 with open(IDL_PATH, "r") as f:

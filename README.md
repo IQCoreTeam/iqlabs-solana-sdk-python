@@ -11,6 +11,7 @@
    - [User State PDA](#user-state-pda)
    - [Connection PDA](#connection-pda)
    - [Database Tables](#database-tables)
+   - [Token & Collection Gating](#token--collection-gating)
    - [Encryption (Crypto)](#encryption-crypto)
 
 2. [Function Details](#function-details)
@@ -106,6 +107,41 @@ You can create tables explicitly with [`create_table()`](#create_table), or impl
 - [`read_table_rows()`](#read_table_rows): read rows from a table
 - [`get_tablelist_from_root()`](#get_tablelist_from_root): list all tables in a database
 - [`fetch_inventory_transactions()`](#fetch_inventory_transactions): list uploaded files
+
+---
+
+### Token & Collection Gating
+
+Tables can be gated so that only users holding a specific token or NFT collection can write data.
+
+#### Gate Types
+
+| Type | `GateType` | Description |
+|------|-----------|-------------|
+| **Token** | `GateType.TOKEN` | User must hold >= `amount` of the specified SPL token mint |
+| **Collection** | `GateType.COLLECTION` | User must hold any NFT from the specified Metaplex verified collection |
+
+#### How it works
+
+- **Table creator** sets the gate when creating or updating a table
+- **Writers** don't need to do anything special — the SDK automatically resolves the required token account (and metadata account for collections) when calling `write_row()` or `manage_row_data()`
+- If no gate is set, the table is public (default behavior, no change for existing users)
+
+#### Gate parameter
+
+```python
+gate = {
+    "mint": Pubkey,       # token mint address OR collection address
+    "amount": int,        # minimum token amount (default: 1, ignored for collections)
+    "gate_type": int,     # GateType.TOKEN (default) or GateType.COLLECTION
+}
+```
+
+#### Notes
+
+- For **token gates**, `amount` specifies the minimum balance required (e.g., 100 means "must hold >= 100 tokens")
+- For **collection gates**, the user can present any NFT from that collection. `amount` is ignored (NFTs always have amount=1)
+- Omitting the `gate` parameter creates a public table with no restrictions
 
 ---
 
@@ -314,17 +350,33 @@ tx_sig = await writer.update_user_metadata(
 
 #### `create_table()`
 
-| **Parameters** | `connection`: AsyncClient<br>`signer`: Keypair or WalletSigner<br>`db_root_id`: database ID (bytes or str)<br>`table_seed`: table seed (bytes or str)<br>`table_name`: display name (str or bytes)<br>`column_names`: column names (list[str or bytes])<br>`id_col`: ID column (str or bytes)<br>`ext_keys`: extension keys (list[str or bytes])<br>`gate_mint`: optional SPL token gate (Pubkey)<br>`writers`: optional writer whitelist (list[Pubkey]) |
+| **Parameters** | `connection`: AsyncClient<br>`signer`: Keypair or WalletSigner<br>`db_root_id`: database ID (bytes or str)<br>`table_seed`: table seed (bytes or str)<br>`table_name`: display name (str or bytes)<br>`column_names`: column names (list[str or bytes])<br>`id_col`: ID column (str or bytes)<br>`ext_keys`: extension keys (list[str or bytes])<br>`gate`: optional access gate (see [Token & Collection Gating](#token--collection-gating))<br>`writers`: optional writer whitelist (list[Pubkey]) |
 |----------|--------------------------|
 | **Returns** | Transaction signature (str) |
 
 **Example:**
 ```python
 from iqlabs import writer
+from iqlabs.contract import GateType
 
+# No gate (public table)
 await writer.create_table(
     connection, signer, 'my-db', 'users', 'Users Table',
     ['name', 'email'], 'user_id', []
+)
+
+# With token gate (must hold >= 100 tokens)
+await writer.create_table(
+    connection, signer, 'my-db', 'vip', 'VIP Table',
+    ['name'], 'user_id', [],
+    gate={"mint": token_mint_pubkey, "amount": 100, "gate_type": GateType.TOKEN}
+)
+
+# With NFT collection gate
+await writer.create_table(
+    connection, signer, 'my-db', 'holders', 'Holder Table',
+    ['name'], 'user_id', [],
+    gate={"mint": collection_pubkey, "gate_type": GateType.COLLECTION}
 )
 ```
 

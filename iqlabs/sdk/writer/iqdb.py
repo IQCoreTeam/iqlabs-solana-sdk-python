@@ -88,9 +88,17 @@ async def create_table(
     column_names: list[bytes | str],
     id_col: bytes | str,
     ext_keys: list[bytes | str],
-    gate_mint: Pubkey | None = None,
+    gate: dict | None = None,
     writers: list[Pubkey] | None = None,
 ) -> str:
+    """Create a table.
+
+    Args:
+        gate: Optional access gate config dict with keys:
+            - mint (Pubkey): token mint or collection address
+            - amount (int, optional): minimum token amount, default 1
+            - gate_type (int, optional): 0=Token, 1=Collection, default 0
+    """
     program_id = PROGRAM_ID
     builder = create_instruction_builder(program_id)
     db_root_seed = to_seed_bytes(db_root_id)
@@ -131,7 +139,7 @@ async def create_table(
             "column_names": [to_bytes(c) for c in column_names],
             "id_col": to_bytes(id_col),
             "ext_keys": [to_bytes(k) for k in ext_keys],
-            "gate_mint_opt": gate_mint,
+            "gate_opt": gate,
             "writers_opt": writers,
         },
     ))
@@ -169,14 +177,45 @@ async def validate_row_json(
     return meta
 
 
+METAPLEX_PROGRAM_ID = Pubkey.from_string("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
+GATE_TYPE_COLLECTION = 1
+
+
 async def resolve_signer_ata(
     connection: AsyncClient,
     signer: SignerInput,
-    gate_mint: Pubkey | None = None,
+    gate_mint: Pubkey,
 ) -> Pubkey | None:
-    if not gate_mint or gate_mint == SYSTEM_PROGRAM_ID:
+    if gate_mint == Pubkey.default():
         return None
     return await resolve_associated_token_account(connection, get_public_key(signer), gate_mint, require_exists=True)
+
+
+def _get_metadata_pda(mint: Pubkey) -> Pubkey:
+    seeds = [b"metadata", bytes(METAPLEX_PROGRAM_ID), bytes(mint)]
+    pda, _ = Pubkey.find_program_address(seeds, METAPLEX_PROGRAM_ID)
+    return pda
+
+
+async def _resolve_gate_accounts(
+    connection: AsyncClient,
+    signer: SignerInput,
+    gate: dict,
+) -> dict:
+    """Resolve signer_ata and metadata_account for gate checks."""
+    mint = gate.get("mint", Pubkey.default())
+    signer_ata = await resolve_signer_ata(connection, signer, mint)
+    if not signer_ata:
+        return {"signer_ata": None, "metadata_account": None}
+
+    metadata_account = None
+    if gate.get("gate_type") == GATE_TYPE_COLLECTION:
+        info = await connection.get_account_info(signer_ata)
+        if info.value and len(info.value.data) >= 64:
+            nft_mint = Pubkey.from_bytes(bytes(info.value.data)[:32])
+            metadata_account = _get_metadata_pda(nft_mint)
+
+    return {"signer_ata": signer_ata, "metadata_account": metadata_account}
 
 
 async def write_row(
@@ -200,7 +239,7 @@ async def write_row(
     if meta["writers"] and get_public_key(signer) not in [w for w in meta["writers"]]:
         raise ValueError("signer not in writers")
 
-    signer_ata = await resolve_signer_ata(connection, signer, meta.get("gate_mint"))
+    gate_accounts = await _resolve_gate_accounts(connection, signer, meta["gate"])
     prepared = await prepare_code_in(connection, signer, [row_json])
 
     ix = db_code_in_instruction(
@@ -211,7 +250,8 @@ async def write_row(
             "user_inventory": prepared["user_inventory"],
             "db_root": db_root,
             "table": table_pda,
-            "signer_ata": signer_ata,
+            "signer_ata": gate_accounts["signer_ata"],
+            "metadata_account": gate_accounts["metadata_account"],
             "system_program": SYSTEM_PROGRAM_ID,
             "receiver": prepared["fee_receiver"],
             "session": prepared["session_account"],
@@ -331,7 +371,7 @@ async def manage_row_data(
         if meta["writers"] and get_public_key(signer) not in [w for w in meta["writers"]]:
             raise ValueError("signer not in writers")
 
-        signer_ata = await resolve_signer_ata(connection, signer, meta.get("gate_mint"))
+        gate_accounts = await _resolve_gate_accounts(connection, signer, meta["gate"])
         prepared = await prepare_code_in(connection, signer, [row_json])
 
         table_name_bytes = table_name.encode("utf-8") if isinstance(table_name, str) else table_name
@@ -346,7 +386,8 @@ async def manage_row_data(
                 "db_root": db_root,
                 "table": table,
                 "instruction_table": instruction_table,
-                "signer_ata": signer_ata,
+                "signer_ata": gate_accounts["signer_ata"],
+                "metadata_account": gate_accounts["metadata_account"],
                 "system_program": SYSTEM_PROGRAM_ID,
                 "receiver": prepared["fee_receiver"],
                 "session": prepared["session_account"],

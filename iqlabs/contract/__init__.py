@@ -17,6 +17,7 @@ from .constants import (
     CONNECTION_BLOCKER_NONE,
 )
 from .instructions import (
+    GateType,
     InstructionBuilder,
     create_instruction_builder,
     create_admin_table_instruction,
