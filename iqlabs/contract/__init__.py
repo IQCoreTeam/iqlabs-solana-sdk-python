@@ -43,6 +43,8 @@ from .instructions import (
     wallet_connection_code_in_instruction,
     db_code_in_instruction,
     db_instruction_code_in_instruction,
+    onboard_table_instruction,
+    manage_table_creators_instruction,
 )
 from .pda import (
     get_db_root_pda,

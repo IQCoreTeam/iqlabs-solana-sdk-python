@@ -92,6 +92,12 @@ class BorshEncoder:
             self.write_bytes(item)
         return self
 
+    def write_vec_pubkey_required(self, items: list[Pubkey]) -> "BorshEncoder":
+        self.write_u32(len(items))
+        for item in items:
+            self.write_pubkey(item)
+        return self
+
     def write_vec_pubkey(self, items: list[Pubkey] | None) -> "BorshEncoder":
         if items is None:
             self.write_u8(0)
@@ -303,6 +309,15 @@ def encode_instruction(name: str, args: dict) -> bytes:
         encoder.write_bytes(args["db_root_id"])
         encoder.write_vec_bytes(args["new_table_seeds"])
 
+    elif name == "onboard_table":
+        encoder.write_bytes(args["db_root_id"])
+        encoder.write_bytes(args["table_seed"])
+
+    elif name == "manage_table_creators":
+        encoder.write_bytes(args["db_root_id"])
+        encoder.write_vec_pubkey_required(args["table_creators"])
+        encoder.write_vec_pubkey_required(args["ext_creators"])
+
     elif name == "realloc_account":
         encoder.write_u64(args["new_size"])
 
@@ -434,6 +449,9 @@ def decode_account(name: str, data: bytes) -> dict | None:
             result["creator"] = decoder.read_pubkey()
             result["table_seeds"] = decoder.read_vec_bytes()
             result["global_table_seeds"] = decoder.read_vec_bytes()
+            result["id"] = decoder.read_bytes()
+            result["table_creators"] = decoder.read_vec_pubkey() if decoder.remaining >= 4 else []
+            result["ext_creators"] = decoder.read_vec_pubkey() if decoder.remaining >= 4 else []
 
     except ValueError:
         pass  # Partial decode is ok

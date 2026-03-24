@@ -153,3 +153,11 @@ def db_code_in_instruction(
 
 def db_instruction_code_in_instruction(builder: InstructionBuilder, accounts: dict[str, Pubkey | None], args: dict) -> Instruction:
     return builder.build("db_instruction_code_in", accounts, args)
+
+
+def onboard_table_instruction(builder: InstructionBuilder, accounts: dict[str, Pubkey | None], args: dict) -> Instruction:
+    return builder.build("onboard_table", accounts, args)
+
+
+def manage_table_creators_instruction(builder: InstructionBuilder, accounts: dict[str, Pubkey | None], args: dict) -> Instruction:
+    return builder.build("manage_table_creators", accounts, args)
