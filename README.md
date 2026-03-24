@@ -586,6 +586,27 @@ set_rpc_url('https://your-rpc.example.com')
 
 ---
 
+### Helius Optimization
+
+When the RPC URL points to a Helius endpoint (`helius-rpc.com`), the SDK automatically uses `getTransactionsForAddress` (gTFA) for reading session files. This fetches 100 full transactions per call instead of individual `getTransaction` calls.
+
+**Result:** Large file reads are ~100x faster (e.g. 580KB file: 468s → 4.6s).
+
+No code changes needed — just set a Helius RPC URL:
+
+```python
+from iqlabs import set_rpc_url
+
+set_rpc_url('https://mainnet.helius-rpc.com/?api-key=YOUR_KEY')
+
+# read_code_in automatically uses gTFA when available
+result = await reader.read_code_in(tx_signature)
+```
+
+Falls back to standard sequential reads on any non-Helius RPC. Requires a paid Helius plan for gTFA access.
+
+---
+
 ## Advanced Functions
 
 These functions are advanced/internal, so this doc lists them only. For details, please see our [developer docs](https://iqlabs.dev).
