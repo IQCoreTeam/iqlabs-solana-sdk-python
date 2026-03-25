@@ -21,6 +21,7 @@ def decode_table_meta(data: bytes) -> dict:
     return {
         "columns": [v.decode("utf-8").rstrip("\x00") for v in decoded["column_names"]],
         "id_col": decoded["id_col"].decode("utf-8").rstrip("\x00"),
+        "name": decoded["name"].decode("utf-8").rstrip("\x00"),
         "gate": decoded["gate"],
         "writers": decoded["writers"],
     }
