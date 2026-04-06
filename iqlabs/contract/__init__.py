@@ -18,6 +18,7 @@ from .constants import (
 )
 from .instructions import (
     GateType,
+    IQ_IDL,
     InstructionBuilder,
     create_instruction_builder,
     create_admin_table_instruction,

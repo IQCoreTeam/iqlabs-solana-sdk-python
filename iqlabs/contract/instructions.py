@@ -20,6 +20,9 @@ IDL_PATH = Path(__file__).parent.parent / "idl" / "code_in.json"
 with open(IDL_PATH, "r") as f:
     _raw_idl = json.load(f)
 
+# IQLabs IDL — for direct Anchor usage
+IQ_IDL = _raw_idl
+
 
 @dataclass
 class InstructionBuilder:
@@ -46,7 +49,9 @@ class InstructionBuilder:
         return Instruction(self.program_id, data, keys)
 
 
-def create_instruction_builder(program_id: Pubkey) -> InstructionBuilder:
+def create_instruction_builder(program_id: Pubkey | None = None) -> InstructionBuilder:
+    from .profile import PROGRAM_ID as _DEFAULT_PID
+    program_id = program_id or _DEFAULT_PID
     instructions = _raw_idl.get("instructions", [])
     instruction_map = {ix["name"]: ix for ix in instructions}
     return InstructionBuilder(program_id, instruction_map)
