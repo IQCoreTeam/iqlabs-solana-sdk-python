@@ -284,6 +284,7 @@ def encode_instruction(name: str, args: dict) -> bytes:
     elif name in ("create_table", "create_admin_table", "create_ext_table", "create_private_table"):
         encoder.write_bytes(args["db_root_id"])
         encoder.write_bytes(args["table_seed"])
+        encoder.write_bytes(args["table_hint"])
         encoder.write_bytes(args["table_name"])
         encoder.write_vec_bytes(args["column_names"])
         encoder.write_bytes(args["id_col"])
@@ -308,6 +309,10 @@ def encode_instruction(name: str, args: dict) -> bytes:
     elif name == "update_db_root_table_list":
         encoder.write_bytes(args["db_root_id"])
         encoder.write_vec_bytes(args["new_table_seeds"])
+
+    elif name == "update_db_root_global_table_list":
+        encoder.write_bytes(args["db_root_id"])
+        encoder.write_vec_bytes(args["new_global_table_seeds"])
 
     elif name == "onboard_table":
         encoder.write_bytes(args["db_root_id"])

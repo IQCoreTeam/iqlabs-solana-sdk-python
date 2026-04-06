@@ -90,10 +90,13 @@ async def create_table(
     ext_keys: list[bytes | str],
     gate: dict | None = None,
     writers: list[Pubkey] | None = None,
+    table_hint: bytes | str = b"",
 ) -> str:
     """Create a table.
 
     Args:
+        table_hint: Human-readable identifier stored in DbRoot.table_seeds for discovery.
+            The table_seed is hashed for PDA derivation and NOT stored.
         gate: Optional access gate config dict with keys:
             - mint (Pubkey): token mint or collection address
             - amount (int, optional): minimum token amount, default 1
@@ -135,6 +138,7 @@ async def create_table(
         {
             "db_root_id": db_root_seed,
             "table_seed": table_seed_bytes,
+            "table_hint": to_bytes(table_hint) if table_hint else table_seed_bytes,
             "table_name": to_bytes(table_name),
             "column_names": [to_bytes(c) for c in column_names],
             "id_col": to_bytes(id_col),
@@ -239,7 +243,12 @@ async def write_row(
     if meta["writers"] and get_public_key(signer) not in [w for w in meta["writers"]]:
         raise ValueError("signer not in writers")
 
-    gate_accounts = await _resolve_gate_accounts(connection, signer, meta["gate"])
+    has_gate = meta["gate"] and meta["gate"].get("mint") != Pubkey.default()
+    gate_accounts = (
+        await _resolve_gate_accounts(connection, signer, meta["gate"])
+        if has_gate
+        else {"signer_ata": None, "metadata_account": None}
+    )
     prepared = await prepare_code_in(connection, signer, [row_json])
 
     ix = db_code_in_instruction(
@@ -371,7 +380,12 @@ async def manage_row_data(
         if meta["writers"] and get_public_key(signer) not in [w for w in meta["writers"]]:
             raise ValueError("signer not in writers")
 
-        gate_accounts = await _resolve_gate_accounts(connection, signer, meta["gate"])
+        has_gate = meta["gate"] and meta["gate"].get("mint") != Pubkey.default()
+        gate_accounts = (
+            await _resolve_gate_accounts(connection, signer, meta["gate"])
+            if has_gate
+            else {"signer_ata": None, "metadata_account": None}
+        )
         prepared = await prepare_code_in(connection, signer, [row_json])
 
         table_name_bytes = table_name.encode("utf-8") if isinstance(table_name, str) else table_name

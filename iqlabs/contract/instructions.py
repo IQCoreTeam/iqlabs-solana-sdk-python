@@ -120,6 +120,10 @@ def update_db_root_table_list_instruction(builder: InstructionBuilder, accounts:
     return builder.build("update_db_root_table_list", accounts, args)
 
 
+def update_db_root_global_table_list_instruction(builder: InstructionBuilder, accounts: dict[str, Pubkey | None], args: dict) -> Instruction:
+    return builder.build("update_db_root_global_table_list", accounts, args)
+
+
 def update_table_instruction(builder: InstructionBuilder, accounts: dict[str, Pubkey | None], args: dict) -> Instruction:
     return builder.build("update_table", accounts, args)
 

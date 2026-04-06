@@ -37,6 +37,7 @@ from .instructions import (
     server_initialize_instruction,
     set_merkle_root_instruction,
     update_db_root_table_list_instruction,
+    update_db_root_global_table_list_instruction,
     update_table_instruction,
     update_user_metadata_instruction,
     user_initialize_instruction,
