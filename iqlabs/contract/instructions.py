@@ -170,3 +170,15 @@ def onboard_table_instruction(builder: InstructionBuilder, accounts: dict[str, P
 
 def manage_table_creators_instruction(builder: InstructionBuilder, accounts: dict[str, Pubkey | None], args: dict) -> Instruction:
     return builder.build("manage_table_creators", accounts, args)
+
+
+def set_root_table_creation_fee_instruction(builder: InstructionBuilder, accounts: dict[str, Pubkey | None], args: dict) -> Instruction:
+    return builder.build("set_root_table_creation_fee", accounts, args)
+
+
+def clear_root_table_creation_fee_instruction(builder: InstructionBuilder, accounts: dict[str, Pubkey | None], args: dict) -> Instruction:
+    return builder.build("clear_root_table_creation_fee", accounts, args)
+
+
+def transfer_db_root_creator_instruction(builder: InstructionBuilder, accounts: dict[str, Pubkey | None], args: dict) -> Instruction:
+    return builder.build("transfer_db_root_creator", accounts, args)

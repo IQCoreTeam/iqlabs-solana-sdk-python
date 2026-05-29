@@ -166,6 +166,36 @@ async def send_tx(
     return str(signature)
 
 
+async def send_tx_with_retries(
+    connection: AsyncClient,
+    signer: Keypair | WalletSigner,
+    instructions: Instruction | list[Instruction],
+    skip_confirmation: bool = False,
+    max_retries: int = 10,
+    retry_delay_ms: int = 1500,
+) -> str:
+    """Retry-wrapped send_tx for unstable chunk uploads under high concurrency."""
+    import asyncio
+
+    last_error: Exception | None = None
+    for attempt in range(max_retries + 1):
+        try:
+            return await send_tx(connection, signer, instructions, skip_confirmation)
+        except Exception as error:
+            last_error = error
+            if attempt == max_retries:
+                break
+            delay = (retry_delay_ms * (attempt + 1)) / 1000.0
+            print(
+                f"[send_tx_with_retries] Attempt {attempt + 1}/{max_retries + 1} failed. "
+                f"Retrying in {delay}s... {error}"
+            )
+            await asyncio.sleep(delay)
+
+    print(f"[send_tx_with_retries] Failed after {max_retries + 1} attempts")
+    raise last_error if last_error else RuntimeError("Unknown transaction error after retries")
+
+
 async def ensure_user_initialized(
     connection: AsyncClient,
     signer: Keypair | WalletSigner,

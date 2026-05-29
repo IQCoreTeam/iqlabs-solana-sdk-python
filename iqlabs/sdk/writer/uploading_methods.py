@@ -16,13 +16,17 @@ from ..utils.concurrency import run_with_concurrency
 from ..utils.rate_limiter import create_rate_limiter
 from ..utils.session_speed import SESSION_SPEED_PROFILES, resolve_session_speed
 from ..utils.wallet import WalletSigner
-from ..utils.writer_utils import send_tx
+from ..utils.writer_utils import send_tx, send_tx_with_retries
 
 
 def _resolve_upload_config(speed: str | None = None) -> dict:
     resolved_speed = resolve_session_speed(speed)
     profile = SESSION_SPEED_PROFILES[resolved_speed]
-    return {"max_concurrency": profile["max_concurrency"], "max_rps": profile["max_rps"]}
+    return {
+        "max_concurrency": profile["max_concurrency"],
+        "max_concurrency_upload": profile["max_concurrency_upload"],
+        "max_rps": profile["max_rps"],
+    }
 
 
 async def upload_linked_list(
@@ -136,7 +140,7 @@ async def upload_session(
                 "decode_break": 0,
             },
         )
-        await send_tx(connection, signer, ix)
+        await send_tx_with_retries(connection, signer, ix, skip_confirmation=True)
         completed[0] += 1
         if on_progress and total_chunks > 0:
             percent = (completed[0] * 100) // total_chunks
@@ -144,6 +148,6 @@ async def upload_session(
                 last_percent[0] = percent
                 on_progress(percent)
 
-    await run_with_concurrency(payloads, config["max_concurrency"], worker)
+    await run_with_concurrency(payloads, config["max_concurrency_upload"], worker)
 
     return str(session)

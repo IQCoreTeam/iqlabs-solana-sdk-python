@@ -113,6 +113,10 @@ async def create_table(
     db_root_info = await connection.get_account_info(db_root)
     if not db_root_info.value:
         raise ValueError("db_root not found")
+    db_root_decoded = decode_account("DbRoot", bytes(db_root_info.value.data))
+    if not db_root_decoded:
+        raise ValueError("Failed to decode db_root account")
+    db_root_creator: Pubkey = db_root_decoded["creator"]
 
     def to_bytes(v: str | bytes) -> bytes:
         return v.encode("utf-8") if isinstance(v, str) else v
@@ -130,6 +134,7 @@ async def create_table(
         {
             "db_root": db_root,
             "receiver": Pubkey.from_string(DEFAULT_WRITE_FEE_RECEIVER),
+            "db_root_creator": db_root_creator,
             "signer": get_public_key(signer),
             "table": table,
             "instruction_table": instruction_table,
@@ -249,7 +254,7 @@ async def write_row(
         if has_gate
         else {"signer_ata": None, "metadata_account": None}
     )
-    prepared = await prepare_code_in(connection, signer, [row_json])
+    prepared = await prepare_code_in(connection, signer, row_json)
 
     ix = db_code_in_instruction(
         prepared["builder"],
@@ -315,7 +320,7 @@ async def write_connection_row(
     # Connection payloads are application-defined (plain or encrypted);
     # the program doesn't validate columns, so the SDK shouldn't either.
 
-    prepared = await prepare_code_in(connection, signer, [row_json])
+    prepared = await prepare_code_in(connection, signer, row_json)
     ix = wallet_connection_code_in_instruction(
         prepared["builder"],
         {
@@ -386,7 +391,7 @@ async def manage_row_data(
             if has_gate
             else {"signer_ata": None, "metadata_account": None}
         )
-        prepared = await prepare_code_in(connection, signer, [row_json])
+        prepared = await prepare_code_in(connection, signer, row_json)
 
         table_name_bytes = table_name.encode("utf-8") if isinstance(table_name, str) else table_name
         target_tx_bytes = target_tx.encode("utf-8") if isinstance(target_tx, str) else target_tx

@@ -90,6 +90,36 @@ async def get_tablelist_from_root(
     }
 
 
+async def collect_signatures(
+    account: Pubkey | str,
+    max_signatures: int | None = None,
+) -> list[str]:
+    """Page through getSignaturesForAddress until exhausted (or max_signatures reached)."""
+    pubkey = Pubkey.from_string(account) if isinstance(account, str) else account
+    connection = get_connection()
+    result: list[str] = []
+    before: str | None = None
+
+    while True:
+        from solana.rpc.types import RPCResponse  # noqa: F401
+        opts = {"limit": 1000}
+        if before:
+            opts["before"] = before
+        page_resp = await connection.get_signatures_for_address(pubkey, **opts)
+        page = page_resp.value if hasattr(page_resp, "value") else page_resp
+        for entry in page:
+            result.append(str(entry.signature))
+        has_more = len(page) == 1000
+        if has_more:
+            before = str(page[-1].signature)
+        if max_signatures and len(result) >= max_signatures:
+            return result[:max_signatures]
+        if not has_more:
+            break
+
+    return result
+
+
 async def read_table_rows(
     account: Pubkey | str,
     before: str | None = None,

@@ -47,6 +47,9 @@ from .instructions import (
     db_instruction_code_in_instruction,
     onboard_table_instruction,
     manage_table_creators_instruction,
+    set_root_table_creation_fee_instruction,
+    clear_root_table_creation_fee_instruction,
+    transfer_db_root_creator_instruction,
 )
 from .pda import (
     get_db_root_pda,
