@@ -12,7 +12,7 @@ from ...contract import (
 from ..utils.connection_helper import get_connection
 from ..utils.global_fetch import decode_connection_meta
 from ..utils.rate_limiter import create_rate_limiter
-from ..utils.session_speed import resolve_session_speed, SESSION_SPEED_PROFILES
+from ..utils.session_speed import SessionSpeedOption, resolve_session_config
 from ..utils.seed import derive_dm_seed, to_seed_bytes
 from .read_code_in import read_code_in
 from .reader_context import reader_context
@@ -124,11 +124,10 @@ async def read_table_rows(
     account: Pubkey | str,
     before: str | None = None,
     limit: int | None = None,
-    speed: str | None = None,
+    speed: SessionSpeedOption | None = None,
 ) -> list[dict]:
     signatures = await fetch_account_transactions(account, before=before, limit=limit)
-    speed_key = resolve_session_speed(speed)
-    limiter = create_rate_limiter(SESSION_SPEED_PROFILES[speed_key]["max_rps"])
+    limiter = create_rate_limiter(resolve_session_config(speed)["max_rps"])
     rows = []
 
     for sig in signatures:

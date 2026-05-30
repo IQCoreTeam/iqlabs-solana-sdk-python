@@ -16,28 +16,53 @@ from ...contract import (
     get_user_pda,
 )
 from ..constants import (
+    CHUNK_SIZE,
     DEFAULT_LINKED_LIST_THRESHOLD,
     DIRECT_METADATA_MAX_BYTES,
     DEFAULT_IQ_MINT,
     DEFAULT_WRITE_FEE_RECEIVER,
 )
 from ..utils.ata import resolve_associated_token_account
+from ..utils.session_speed import SessionSpeedOption
 from ..utils.wallet import to_wallet_signer, WalletSigner
 from ..utils.writer_utils import ensure_user_initialized, read_magic_bytes, send_tx
 from .uploading_methods import upload_linked_list, upload_session
 from .reader_context_helper import decode_user_state
 
 
+def _to_chunks(data: str | list[str]) -> list[str]:
+    if isinstance(data, list):
+        return data
+    if len(data.encode("utf-8")) <= CHUNK_SIZE:
+        return [data]
+    chunks: list[str] = []
+    chunk = ""
+    chunk_bytes = 0
+    for char in data:
+        char_bytes = len(char.encode("utf-8"))
+        if chunk_bytes + char_bytes > CHUNK_SIZE:
+            chunks.append(chunk)
+            chunk = char
+            chunk_bytes = char_bytes
+        else:
+            chunk += char
+            chunk_bytes += char_bytes
+    if chunk:
+        chunks.append(chunk)
+    return chunks
+
+
 async def prepare_code_in(
     connection: AsyncClient,
     signer: Keypair | WalletSigner,
-    chunks: list[str],
+    data: str | list[str],
     filename: str | None = None,
     method: int = 0,
     filetype: str = "",
     on_progress: Callable[[int], None] | None = None,
-    speed: str | None = None,
+    speed: SessionSpeedOption | None = None,
 ) -> dict:
+    chunks = _to_chunks(data)
     total_chunks = len(chunks)
     if total_chunks == 0:
         raise ValueError("chunks is empty")
@@ -129,7 +154,7 @@ async def code_in(
     method: int = 0,
     filetype: str = "",
     on_progress: Callable[[int], None] | None = None,
-    speed: str | None = None,
+    speed: SessionSpeedOption | None = None,
 ) -> str:
     prepared = await prepare_code_in(
         connection, signer, chunks, filename, method, filetype, on_progress, speed

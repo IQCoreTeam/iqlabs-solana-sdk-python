@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2026-05-29
+
+Catches up to TypeScript SDK 0.1.27. `speed` parameter now accepts a raw
+override dict in addition to the four preset names.
+
+### Added
+- `SessionSpeedOption = Union[str, dict]` — `speed` parameter type used
+  by every writer/reader function that accepts a speed.
+- `resolve_session_config(speed)` — string|dict|None → always returns a
+  fresh `{max_rps, max_concurrency, max_concurrency_upload}` dict.
+  Missing dials in a dict override fall back to `DEFAULT_SESSION_SPEED`.
+
+### Changed
+- All writer/reader `speed: str | None` parameter type hints widened to
+  `SessionSpeedOption | None`. String preset names still work; you can
+  now also pass `{"max_rps": 80, "max_concurrency_upload": 30}`.
+- Internal helpers (`_resolve_session_config`, `_resolve_upload_config`)
+  removed — `resolve_session_config` replaces both, exported from
+  `iqlabs.utils`.
+
 ## [0.2.0] - 2026-05-29
 
 Catches up to TypeScript SDK 0.1.26. One-to-one parity verified for every

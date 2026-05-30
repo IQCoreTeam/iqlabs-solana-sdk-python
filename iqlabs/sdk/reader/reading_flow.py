@@ -6,6 +6,7 @@ from solders.pubkey import Pubkey
 from ...coder import decode_account
 from ...contract import get_user_inventory_pda, get_user_pda
 from ..utils.connection_helper import get_connection, get_reader_connection
+from ..utils.session_speed import SessionSpeedOption
 from .reader_profile import resolve_read_mode
 from .reading_methods import read_linked_list_result, read_session_result
 from .reader_context import reader_context
@@ -40,7 +41,7 @@ async def fetch_inventory_transactions(public_key: Pubkey, limit: int, before: s
 async def read_session(
     session_pubkey: str,
     read_option: dict,
-    speed: str | None = None,
+    speed: SessionSpeedOption | None = None,
     on_progress: Callable[[int], None] | None = None,
 ) -> dict:
     connection = get_reader_connection(read_option.get("freshness"))
@@ -65,7 +66,7 @@ async def read_linked_list_from_tail(
 
 async def read_user_inventory_code_in_from_tx(
     tx,
-    speed: str | None = None,
+    speed: SessionSpeedOption | None = None,
     on_progress: Callable[[int], None] | None = None,
 ) -> dict:
     block_time = tx.block_time

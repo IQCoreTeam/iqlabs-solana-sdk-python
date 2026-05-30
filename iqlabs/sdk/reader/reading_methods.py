@@ -6,13 +6,8 @@ from ..utils.connection_helper import get_reader_connection
 from ..utils.rpc_client import RpcClient
 from ..utils.concurrency import run_with_concurrency
 from ..utils.rate_limiter import create_rate_limiter
-from ..utils.session_speed import SESSION_SPEED_PROFILES, resolve_session_speed
+from ..utils.session_speed import SessionSpeedOption, resolve_session_config
 from .reader_utils import decode_reader_instruction
-
-
-def _resolve_session_config(speed: str | None = None) -> dict:
-    resolved_speed = resolve_session_speed(speed)
-    return SESSION_SPEED_PROFILES[resolved_speed]
 
 
 def _extract_anchor_instruction(tx, expected_name: str) -> dict | None:
@@ -52,7 +47,7 @@ def _extract_send_code(tx) -> dict | None:
 async def read_session_result(
     session_pubkey: str,
     read_option: dict,
-    speed: str | None = None,
+    speed: SessionSpeedOption | None = None,
     on_progress: Callable[[int], None] | None = None,
 ) -> dict:
     connection = get_reader_connection(read_option.get("freshness"))
@@ -109,7 +104,7 @@ async def read_session_result(
         before = next_before
 
     chunk_map = {}
-    session_config = _resolve_session_config(speed)
+    session_config = resolve_session_config(speed)
     limiter = create_rate_limiter(session_config["max_rps"])
     max_concurrency = session_config["max_concurrency"]
     total_signatures = len(signatures)

@@ -7,7 +7,7 @@ from ...coder import decode_account, decode_instruction
 from ...contract import get_session_pda, get_user_pda
 from ..utils.connection_helper import get_connection
 from ..utils.rate_limiter import create_rate_limiter
-from ..utils.session_speed import resolve_session_speed, SESSION_SPEED_PROFILES
+from ..utils.session_speed import SessionSpeedOption, resolve_session_config
 from .reader_context import reader_context
 
 CODE_IN_INSTRUCTION_NAMES = (
@@ -102,7 +102,7 @@ async def fetch_user_connections(
     user_pubkey: Pubkey | str,
     limit: int | None = None,
     before: str | None = None,
-    speed: str | None = None,
+    speed: SessionSpeedOption | None = None,
 ) -> list[dict]:
     from ..utils.global_fetch import decode_connection_meta, resolve_connection_status
 
@@ -112,8 +112,7 @@ async def fetch_user_connections(
 
     signatures = await fetch_account_transactions(user_state, before=before, limit=limit)
 
-    speed_key = resolve_session_speed(speed)
-    profile = SESSION_SPEED_PROFILES[speed_key]
+    profile = resolve_session_config(speed)
     rate_limiter = create_rate_limiter(profile["max_rps"])
 
     connection_pda_set = set()

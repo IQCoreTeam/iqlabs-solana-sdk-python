@@ -14,19 +14,9 @@ from ...contract import (
 )
 from ..utils.concurrency import run_with_concurrency
 from ..utils.rate_limiter import create_rate_limiter
-from ..utils.session_speed import SESSION_SPEED_PROFILES, resolve_session_speed
+from ..utils.session_speed import SessionSpeedOption, resolve_session_config
 from ..utils.wallet import WalletSigner
 from ..utils.writer_utils import send_tx, send_tx_with_retries
-
-
-def _resolve_upload_config(speed: str | None = None) -> dict:
-    resolved_speed = resolve_session_speed(speed)
-    profile = SESSION_SPEED_PROFILES[resolved_speed]
-    return {
-        "max_concurrency": profile["max_concurrency"],
-        "max_concurrency_upload": profile["max_concurrency_upload"],
-        "max_rps": profile["max_rps"],
-    }
 
 
 async def upload_linked_list(
@@ -38,7 +28,7 @@ async def upload_linked_list(
     chunks: list[str],
     method: int,
     on_progress: Callable[[int], None] | None = None,
-    speed: str | None = None,
+    speed: SessionSpeedOption | None = None,
 ) -> str:
     total_chunks = len(chunks)
     last_percent = -1
@@ -46,7 +36,7 @@ async def upload_linked_list(
         on_progress(0)
         last_percent = 0
 
-    config = _resolve_upload_config(speed)
+    config = resolve_session_config(speed)
     limiter = create_rate_limiter(config["max_rps"])
     before_tx = "Genesis"
 
@@ -87,10 +77,10 @@ async def upload_session(
     seq: int,
     chunks: list[str],
     method: int,
-    speed: str | None = None,
+    speed: SessionSpeedOption | None = None,
     on_progress: Callable[[int], None] | None = None,
 ) -> str:
-    config = _resolve_upload_config(speed)
+    config = resolve_session_config(speed)
     total_chunks = len(chunks)
     completed = [0]
     last_percent = [-1]
