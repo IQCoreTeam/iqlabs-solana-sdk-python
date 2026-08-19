@@ -55,6 +55,7 @@ def _build_realloc_ix_if_needed(
     payer: Pubkey,
     target: Pubkey,
     account_data: bytes,
+    needed_extra: int = 0,
 ) -> Instruction | None:
     decoded = decode_account("DbRoot", account_data)
     if not decoded:
@@ -69,13 +70,17 @@ def _build_realloc_ix_if_needed(
     id_bytes = decoded.get("id", b"")
     used += 4 + len(id_bytes)
 
-    if len(account_data) - used >= _REALLOC_THRESHOLD:
+    free_bytes = len(account_data) - used
+    min_required = max(needed_extra, _REALLOC_THRESHOLD)
+    if free_bytes >= min_required:
         return None
 
+    # Grow enough for the immediate need + headroom for future entries.
+    grow_by = max(_REALLOC_EXTRA, min_required - free_bytes + _REALLOC_EXTRA)
     return realloc_account_instruction(
         builder,
         {"payer": payer, "target": target, "system_program": SYSTEM_PROGRAM_ID},
-        {"new_size": len(account_data) + _REALLOC_EXTRA},
+        {"new_size": len(account_data) + grow_by},
     )
 
 
@@ -121,10 +126,20 @@ async def create_table(
     def to_bytes(v: str | bytes) -> bytes:
         return v.encode("utf-8") if isinstance(v, str) else v
 
+    # table_hint stores the human-readable seed for discovery (DbRoot.table_seeds), NOT the
+    # hashed PDA seed. Default to the raw seed string when no explicit hint is given.
+    hint_bytes = (
+        to_bytes(table_hint)
+        if table_hint
+        else (table_seed.encode("utf-8") if isinstance(table_seed, str) else table_seed_bytes)
+    )
+    # hint is stored twice (table_seeds + global_table_seeds), so reserve space for both.
+    hint_space = (4 + len(hint_bytes)) * 2
+
     ixs: list[Instruction] = []
 
     realloc_ix = _build_realloc_ix_if_needed(
-        builder, get_public_key(signer), db_root, bytes(db_root_info.value.data),
+        builder, get_public_key(signer), db_root, bytes(db_root_info.value.data), hint_space,
     )
     if realloc_ix:
         ixs.append(realloc_ix)
@@ -143,7 +158,7 @@ async def create_table(
         {
             "db_root_id": db_root_seed,
             "table_seed": table_seed_bytes,
-            "table_hint": to_bytes(table_hint) if table_hint else table_seed_bytes,
+            "table_hint": hint_bytes,
             "table_name": to_bytes(table_name),
             "column_names": [to_bytes(c) for c in column_names],
             "id_col": to_bytes(id_col),
@@ -493,7 +508,7 @@ async def request_connection(
     def to_bytes(value: str | bytes) -> bytes:
         return value.encode("utf-8") if isinstance(value, str) else value
 
-    payload_buf = json.dumps({"dmTable": str(connection_table)}).encode("utf-8")
+    payload_buf = json.dumps({"dmTable": str(connection_table)}, separators=(",", ":")).encode("utf-8")
 
     ix = request_connection_instruction(
         builder,

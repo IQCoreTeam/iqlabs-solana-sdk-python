@@ -104,9 +104,11 @@ async def prepare_code_in(
         "filename": safe_filename,
         "total_chunks": total_chunks,
     }
-    inline_metadata = json.dumps({**base_metadata, "data": chunks[0]}) if total_chunks == 1 else ""
+    # Compact separators match JS JSON.stringify, so the on-chain bytes (and the inline-vs-linked
+    # path decision at the DIRECT_METADATA_MAX_BYTES boundary) are byte-identical across SDKs.
+    inline_metadata = json.dumps({**base_metadata, "data": chunks[0]}, separators=(",", ":")) if total_chunks == 1 else ""
     use_inline = bool(inline_metadata) and len(inline_metadata.encode("utf-8")) <= DIRECT_METADATA_MAX_BYTES
-    metadata = inline_metadata if use_inline else json.dumps(base_metadata)
+    metadata = inline_metadata if use_inline else json.dumps(base_metadata, separators=(",", ":"))
 
     on_chain_path = ""
     use_session = not use_inline and total_chunks >= DEFAULT_LINKED_LIST_THRESHOLD

@@ -4,7 +4,8 @@ import time
 
 class RateLimiter:
     def __init__(self, max_rps: int):
-        self._min_delay_ms = max(1, 1000 // max_rps) if max_rps > 0 else 0
+        # ceil(1000 / max_rps) to match the TS limiter (floor would allow a slightly higher rate).
+        self._min_delay_ms = max(1, (1000 + max_rps - 1) // max_rps) if max_rps > 0 else 0
         self._next_time = 0
 
     async def wait(self) -> None:

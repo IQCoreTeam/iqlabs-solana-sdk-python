@@ -47,7 +47,7 @@ def detect_connection_settings() -> dict:
         or _env("SOLANA_RPC")
         or _env("RPC_ENDPOINT")
         or _env("RPC_URL")
-        or "https://api.devnet.solana.com"
+        or "https://api.mainnet-beta.solana.com"
     )
     return {
         "rpc_url": rpc_url,
