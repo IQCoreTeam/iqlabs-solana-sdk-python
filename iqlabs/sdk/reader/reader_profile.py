@@ -45,7 +45,7 @@ def resolve_read_mode(on_chain_path: str, block_time: int | None = None) -> dict
 
 async def decide_read_mode(tx_signature: str) -> dict:
     connection = get_connection()
-    resp = await connection.get_transaction(tx_signature, max_supported_transaction_version=0)
+    resp = await connection.get_transaction(tx_signature, max_supported_transaction_version=1)
     if not resp.value:
         raise ValueError("transaction not found")
     tx = resp.value

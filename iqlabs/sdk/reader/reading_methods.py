@@ -56,7 +56,7 @@ async def read_session_result(
 
     # Try Helius enhanced first
     helius_transactions = await rpc_client.try_fetch_transactions_for_address_all(
-        session_key, max_supported_transaction_version=0
+        session_key, max_supported_transaction_version=1
     )
     if helius_transactions:
         chunk_map = {}
@@ -117,7 +117,7 @@ async def read_session_result(
     async def worker(entry, _index):
         if limiter:
             await limiter.wait()
-        resp = await connection.get_transaction(entry.signature, max_supported_transaction_version=0)
+        resp = await connection.get_transaction(entry.signature, max_supported_transaction_version=1)
         tx = resp.value
         if not tx:
             return
@@ -164,7 +164,7 @@ async def read_linked_list_result(
             raise ValueError("linked list loop detected")
         visited.add(cursor)
 
-        resp = await connection.get_transaction(cursor, max_supported_transaction_version=0)
+        resp = await connection.get_transaction(cursor, max_supported_transaction_version=1)
         tx = resp.value
         if not tx:
             raise ValueError("linked list transaction not found")

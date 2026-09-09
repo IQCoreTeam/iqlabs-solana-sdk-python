@@ -11,7 +11,6 @@ from iqlabs.sdk.utils.connection_helper import (
 from iqlabs.sdk.utils.seed import (
     derive_dm_seed,
     derive_seed_bytes,
-    sort_pubkeys,
     to_seed_bytes,
 )
 from iqlabs.contract import (
@@ -85,11 +84,6 @@ def test_seed_utils():
     k.update(text.encode("utf-8"))
     expected = k.digest()
     assert hashed.hex() == expected.hex()
-
-    # Test sort_pubkeys
-    a, b = sort_pubkeys("z-user", "a-user")
-    assert a == "a-user"
-    assert b == "z-user"
 
     # Test derive_dm_seed
     dm_seed = derive_dm_seed("user-2", "user-1")

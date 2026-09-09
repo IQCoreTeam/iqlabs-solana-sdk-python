@@ -11,7 +11,7 @@ async def read_code_in(
     on_progress: Callable[[int], None] | None = None,
 ) -> dict:
     connection = get_connection()
-    resp = await connection.get_transaction(tx_signature, max_supported_transaction_version=0)
+    resp = await connection.get_transaction(tx_signature, max_supported_transaction_version=1)
     if not resp.value:
         raise ValueError("transaction not found")
 

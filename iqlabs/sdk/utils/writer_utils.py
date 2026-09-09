@@ -6,55 +6,89 @@ from solders.transaction import Transaction
 from solders.instruction import Instruction
 from solders.keypair import Keypair
 
-from ...contract import user_initialize_instruction, InstructionBuilder
+from ...contract import realloc_account_instruction, user_initialize_instruction, InstructionBuilder
+from ..constants import CODE_ACCOUNT_SPACE, USER_INVENTORY_SPACE
+from .tx_profile import extract_keypair, resolve_tx_profile, should_send_v1
+from .v1_tx import send_tx_v1
 from .wallet import to_wallet_signer, WalletSigner
 
 ACCOUNT_CACHE_TTL_MS = 120_000
-_account_exists_cache: dict[str, dict] = {}
+_account_state_cache: dict[str, dict] = {}
 
 
 def _get_cache_key(pubkey: Pubkey) -> str:
     return str(pubkey)
 
 
-def _read_cache(key: str) -> bool | None:
-    entry = _account_exists_cache.get(key)
+def _read_cache(key: str) -> dict | None:
+    entry = _account_state_cache.get(key)
     if not entry:
         return None
     if time.time() * 1000 > entry["expires_at"]:
-        del _account_exists_cache[key]
+        del _account_state_cache[key]
         return None
-    return entry["exists"]
+    return {"exists": entry["exists"], "data_len": entry["data_len"]}
 
 
-def _write_cache(key: str, exists: bool) -> None:
-    _account_exists_cache[key] = {
+def _write_cache(key: str, exists: bool, data_len: int = 0) -> None:
+    _account_state_cache[key] = {
         "exists": exists,
+        "data_len": data_len,
         "expires_at": time.time() * 1000 + ACCOUNT_CACHE_TTL_MS,
     }
+
+
+def _to_state(value) -> dict:
+    return {
+        "exists": value is not None,
+        "data_len": len(value.data) if value is not None else 0,
+    }
+
+
+async def _refresh_user_accounts_state(
+    connection: AsyncClient,
+    code_account: Pubkey,
+    user_inventory: Pubkey,
+) -> dict:
+    # Both per-user PDAs in one RPC call; the response already carries the data
+    # (and thus the size), which the realloc check below rides on for free.
+    resp = await connection.get_multiple_accounts([code_account, user_inventory])
+    code_info, inventory_info = resp.value[0], resp.value[1]
+    state = {"code": _to_state(code_info), "inventory": _to_state(inventory_info)}
+    _write_cache(_get_cache_key(code_account), state["code"]["exists"], state["code"]["data_len"])
+    _write_cache(_get_cache_key(user_inventory), state["inventory"]["exists"], state["inventory"]["data_len"])
+    return state
+
+
+async def _get_cached_user_accounts_state(
+    connection: AsyncClient,
+    code_account: Pubkey,
+    user_inventory: Pubkey,
+) -> dict:
+    code = _read_cache(_get_cache_key(code_account))
+    inventory = _read_cache(_get_cache_key(user_inventory))
+    if code and inventory:
+        return {"code": code, "inventory": inventory}
+    return await _refresh_user_accounts_state(connection, code_account, user_inventory)
 
 
 async def get_cached_account_exists(connection: AsyncClient, pubkey: Pubkey) -> bool:
     key = _get_cache_key(pubkey)
     cached = _read_cache(key)
     if cached is not None:
-        return cached
+        return cached["exists"]
     info = await connection.get_account_info(pubkey)
-    exists = info.value is not None
-    _write_cache(key, exists)
-    return exists
+    state = _to_state(info.value)
+    _write_cache(key, state["exists"], state["data_len"])
+    return state["exists"]
 
 
 async def refresh_account_exists(connection: AsyncClient, pubkey: Pubkey) -> bool:
     key = _get_cache_key(pubkey)
     info = await connection.get_account_info(pubkey)
-    exists = info.value is not None
-    _write_cache(key, exists)
-    return exists
-
-
-def _mark_account_exists(pubkey: Pubkey, exists: bool = True) -> None:
-    _write_cache(_get_cache_key(pubkey), exists)
+    state = _to_state(info.value)
+    _write_cache(key, state["exists"], state["data_len"])
+    return state["exists"]
 
 
 MAGIC_SIGNATURES = [
@@ -130,6 +164,12 @@ async def send_tx(
 ) -> str:
     from solders.message import Message
 
+    # The v1 decision stays internal: the feature-gate lookup is cached per
+    # endpoint, so callers never need to carry a profile around.
+    if await should_send_v1(connection, signer):
+        ix_list = instructions if isinstance(instructions, list) else [instructions]
+        return await send_tx_v1(connection, extract_keypair(signer), ix_list, skip_confirmation)
+
     wallet = to_wallet_signer(signer)
     blockhash_resp = await connection.get_latest_blockhash()
     blockhash = blockhash_resp.value.blockhash
@@ -202,11 +242,60 @@ async def ensure_user_initialized(
     builder: InstructionBuilder,
     accounts: dict[str, Pubkey],
 ) -> None:
-    exists = await get_cached_account_exists(connection, accounts["user_inventory"])
-    if not exists:
-        exists = await refresh_account_exists(connection, accounts["user_inventory"])
-    if exists:
+    state = await _get_cached_user_accounts_state(
+        connection, accounts["code_account"], accounts["user_inventory"]
+    )
+    if not state["inventory"]["exists"]:
+        state = await _refresh_user_accounts_state(
+            connection, accounts["code_account"], accounts["user_inventory"]
+        )
+
+    if not state["inventory"]["exists"]:
+        ix = user_initialize_instruction(builder, accounts)
+        await send_tx(connection, signer, ix)
+        # The upgraded program creates full-size accounts; the pre-upgrade one
+        # still creates the 900-byte layout, which the realloc pass below
+        # catches on this refresh.
+        state = await _refresh_user_accounts_state(
+            connection, accounts["code_account"], accounts["user_inventory"]
+        )
+
+    # Account size doubles as the layout version marker: anything below the
+    # v1 sizes is a pre-upgrade account and gets grown (both accounts in one
+    # tx, rent paid by the user) before the first v1-profile write. Legacy
+    # profile writes fit the old layout, so nothing is grown there.
+    profile = await resolve_tx_profile(connection, signer)
+    if profile.version != "v1":
         return
-    ix = user_initialize_instruction(builder, accounts)
-    await send_tx(connection, signer, ix)
-    _mark_account_exists(accounts["user_inventory"], True)
+
+    reallocs: list[Instruction] = []
+    if state["code"]["exists"] and state["code"]["data_len"] < CODE_ACCOUNT_SPACE:
+        reallocs.append(
+            realloc_account_instruction(
+                builder,
+                {
+                    "payer": accounts["user"],
+                    "target": accounts["code_account"],
+                    "system_program": accounts.get("system_program"),
+                },
+                {"new_size": CODE_ACCOUNT_SPACE},
+            )
+        )
+    if state["inventory"]["exists"] and state["inventory"]["data_len"] < USER_INVENTORY_SPACE:
+        reallocs.append(
+            realloc_account_instruction(
+                builder,
+                {
+                    "payer": accounts["user"],
+                    "target": accounts["user_inventory"],
+                    "system_program": accounts.get("system_program"),
+                },
+                {"new_size": USER_INVENTORY_SPACE},
+            )
+        )
+    if not reallocs:
+        return
+    await send_tx(connection, signer, reallocs)
+    await _refresh_user_accounts_state(
+        connection, accounts["code_account"], accounts["user_inventory"]
+    )

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "iqlabs-solana-sdk"
-version = "0.2.2"
+version = "0.3.0"
 description = "IQLabs Solana SDK for Python — on-chain data storage, database tables, and connections"
 readme = "README.md"
 license = "Apache-2.0"
@@ -27,7 +27,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "solana>=0.32.0",
+    "solana>=0.36.0",
     "solders>=0.21.0",
     "anchorpy>=0.19.0",
     "pycryptodome>=3.20.0",

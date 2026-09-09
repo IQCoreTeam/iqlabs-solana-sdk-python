@@ -134,3 +134,6 @@ main.py
 plan.md
 examples/
 tests/
+__pycache__/
+*.pyc
+.venv/

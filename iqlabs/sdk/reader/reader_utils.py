@@ -123,7 +123,7 @@ async def fetch_user_connections(
         if rate_limiter:
             await rate_limiter.wait()
         try:
-            resp = await connection.get_transaction(sig.signature, max_supported_transaction_version=0)
+            resp = await connection.get_transaction(sig.signature, max_supported_transaction_version=1)
             tx = resp.value
         except Exception:
             continue

@@ -17,7 +17,7 @@ SIG_MIN_LEN = 80
 
 async def read_inventory_metadata(tx_signature: str) -> dict:
     connection = get_connection()
-    resp = await connection.get_transaction(tx_signature, max_supported_transaction_version=0)
+    resp = await connection.get_transaction(tx_signature, max_supported_transaction_version=1)
     if not resp.value:
         raise ValueError("transaction not found")
     return decode_user_inventory_code_in(resp.value)
@@ -58,7 +58,7 @@ async def read_linked_list_from_tail(
     expected_total_chunks: int | None = None,
 ) -> dict:
     connection = get_reader_connection(read_option.get("freshness"))
-    resp = await connection.get_transaction(tail_tx, max_supported_transaction_version=0)
+    resp = await connection.get_transaction(tail_tx, max_supported_transaction_version=1)
     if not resp.value:
         raise ValueError("tail transaction not found")
     return await read_linked_list_result(tail_tx, read_option, on_progress, expected_total_chunks)

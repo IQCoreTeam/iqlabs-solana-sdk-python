@@ -16,31 +16,29 @@ from ...contract import (
     get_user_pda,
 )
 from ..constants import (
-    CHUNK_SIZE,
-    DEFAULT_LINKED_LIST_THRESHOLD,
-    DIRECT_METADATA_MAX_BYTES,
     DEFAULT_IQ_MINT,
     DEFAULT_WRITE_FEE_RECEIVER,
 )
 from ..utils.ata import resolve_associated_token_account
 from ..utils.session_speed import SessionSpeedOption
+from ..utils.tx_profile import resolve_tx_profile
 from ..utils.wallet import to_wallet_signer, WalletSigner
 from ..utils.writer_utils import ensure_user_initialized, read_magic_bytes, send_tx
 from .uploading_methods import upload_linked_list, upload_session
 from .reader_context_helper import decode_user_state
 
 
-def _to_chunks(data: str | list[str]) -> list[str]:
+def _to_chunks(data: str | list[str], chunk_size: int) -> list[str]:
     if isinstance(data, list):
         return data
-    if len(data.encode("utf-8")) <= CHUNK_SIZE:
+    if len(data.encode("utf-8")) <= chunk_size:
         return [data]
     chunks: list[str] = []
     chunk = ""
     chunk_bytes = 0
     for char in data:
         char_bytes = len(char.encode("utf-8"))
-        if chunk_bytes + char_bytes > CHUNK_SIZE:
+        if chunk_bytes + char_bytes > chunk_size:
             chunks.append(chunk)
             chunk = char
             chunk_bytes = char_bytes
@@ -62,7 +60,8 @@ async def prepare_code_in(
     on_progress: Callable[[int], None] | None = None,
     speed: SessionSpeedOption | None = None,
 ) -> dict:
-    chunks = _to_chunks(data)
+    profile = await resolve_tx_profile(connection, signer)
+    chunks = _to_chunks(data, profile.chunk_size)
     total_chunks = len(chunks)
     if total_chunks == 0:
         raise ValueError("chunks is empty")
@@ -105,13 +104,13 @@ async def prepare_code_in(
         "total_chunks": total_chunks,
     }
     # Compact separators match JS JSON.stringify, so the on-chain bytes (and the inline-vs-linked
-    # path decision at the DIRECT_METADATA_MAX_BYTES boundary) are byte-identical across SDKs.
+    # path decision at the inline_max_bytes boundary) are byte-identical across SDKs.
     inline_metadata = json.dumps({**base_metadata, "data": chunks[0]}, separators=(",", ":")) if total_chunks == 1 else ""
-    use_inline = bool(inline_metadata) and len(inline_metadata.encode("utf-8")) <= DIRECT_METADATA_MAX_BYTES
+    use_inline = bool(inline_metadata) and len(inline_metadata.encode("utf-8")) <= profile.inline_max_bytes
     metadata = inline_metadata if use_inline else json.dumps(base_metadata, separators=(",", ":"))
 
     on_chain_path = ""
-    use_session = not use_inline and total_chunks >= DEFAULT_LINKED_LIST_THRESHOLD
+    use_session = not use_inline and total_chunks >= profile.linked_list_threshold
     session_account = None
     session_finalize = None
 
