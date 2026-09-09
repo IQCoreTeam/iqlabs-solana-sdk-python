@@ -1,6 +1,6 @@
 import time
 
-from ..utils.connection_helper import get_connection
+from ..utils.connection_helper import get_connection, to_signature
 from .reader_utils import decode_reader_instruction, CODE_IN_INSTRUCTION_NAMES
 
 DAY_SECONDS = 86_400
@@ -9,7 +9,7 @@ SIG_MIN_LEN = 80
 
 
 def _resolve_on_chain_path(tx) -> str:
-    message = tx.transaction.message
+    message = tx.transaction.transaction.message
     account_keys = message.account_keys
 
     for ix in message.instructions:
@@ -45,7 +45,7 @@ def resolve_read_mode(on_chain_path: str, block_time: int | None = None) -> dict
 
 async def decide_read_mode(tx_signature: str) -> dict:
     connection = get_connection()
-    resp = await connection.get_transaction(tx_signature, max_supported_transaction_version=1)
+    resp = await connection.get_transaction(to_signature(tx_signature), max_supported_transaction_version=1)
     if not resp.value:
         raise ValueError("transaction not found")
     tx = resp.value

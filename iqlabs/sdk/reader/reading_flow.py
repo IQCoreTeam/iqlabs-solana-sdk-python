@@ -5,7 +5,7 @@ from solders.pubkey import Pubkey
 
 from ...coder import decode_account
 from ...contract import get_user_inventory_pda, get_user_pda
-from ..utils.connection_helper import get_connection, get_reader_connection
+from ..utils.connection_helper import get_connection, get_reader_connection, to_signature
 from ..utils.session_speed import SessionSpeedOption
 from .reader_profile import resolve_read_mode
 from .reading_methods import read_linked_list_result, read_session_result
@@ -17,7 +17,7 @@ SIG_MIN_LEN = 80
 
 async def read_inventory_metadata(tx_signature: str) -> dict:
     connection = get_connection()
-    resp = await connection.get_transaction(tx_signature, max_supported_transaction_version=1)
+    resp = await connection.get_transaction(to_signature(tx_signature), max_supported_transaction_version=1)
     if not resp.value:
         raise ValueError("transaction not found")
     return decode_user_inventory_code_in(resp.value)
@@ -58,7 +58,7 @@ async def read_linked_list_from_tail(
     expected_total_chunks: int | None = None,
 ) -> dict:
     connection = get_reader_connection(read_option.get("freshness"))
-    resp = await connection.get_transaction(tail_tx, max_supported_transaction_version=1)
+    resp = await connection.get_transaction(to_signature(tail_tx), max_supported_transaction_version=1)
     if not resp.value:
         raise ValueError("tail transaction not found")
     return await read_linked_list_result(tail_tx, read_option, on_progress, expected_total_chunks)

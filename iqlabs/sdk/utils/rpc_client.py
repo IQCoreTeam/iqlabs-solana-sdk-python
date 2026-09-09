@@ -2,7 +2,7 @@ from solana.rpc.async_api import AsyncClient
 from solders.pubkey import Pubkey
 from solders.rpc.responses import GetTransactionResp
 
-from .connection_helper import get_connection, get_rpc_provider
+from .connection_helper import get_connection, get_rpc_provider, to_signature
 
 
 class RpcClient:
@@ -32,7 +32,7 @@ class RpcClient:
 
     async def get_transaction(self, signature: str, max_supported_transaction_version: int = 0) -> GetTransactionResp:
         return await self._connection.get_transaction(
-            signature, max_supported_transaction_version=max_supported_transaction_version
+            to_signature(signature), max_supported_transaction_version=max_supported_transaction_version
         )
 
     async def get_transactions_for_address(

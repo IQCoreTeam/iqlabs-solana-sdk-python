@@ -1,6 +1,6 @@
 from typing import Callable
 
-from ..utils.connection_helper import get_connection
+from ..utils.connection_helper import get_connection, to_signature
 from ..utils.session_speed import SessionSpeedOption
 from .reading_flow import read_user_inventory_code_in_from_tx
 
@@ -11,7 +11,7 @@ async def read_code_in(
     on_progress: Callable[[int], None] | None = None,
 ) -> dict:
     connection = get_connection()
-    resp = await connection.get_transaction(tx_signature, max_supported_transaction_version=1)
+    resp = await connection.get_transaction(to_signature(tx_signature), max_supported_transaction_version=1)
     if not resp.value:
         raise ValueError("transaction not found")
 

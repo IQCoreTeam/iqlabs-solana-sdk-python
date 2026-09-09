@@ -1,8 +1,16 @@
 import os
 from solana.rpc.async_api import AsyncClient
+from solders.signature import Signature
 
 _runtime_rpc_url: str | None = None
 _runtime_rpc_provider: str | None = None
+
+
+def to_signature(sig: "Signature | str") -> Signature:
+    """solana-py>=0.36 requires get_transaction to receive a Signature object.
+    Coerce base58 strings (public tx signatures, on_chain_path / before_tx
+    cursors) while passing existing Signature objects through unchanged."""
+    return sig if isinstance(sig, Signature) else Signature.from_string(str(sig))
 
 
 def set_rpc_url(url: str) -> None:

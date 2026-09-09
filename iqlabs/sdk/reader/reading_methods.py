@@ -2,7 +2,7 @@ from typing import Callable, Awaitable
 
 from solders.pubkey import Pubkey
 
-from ..utils.connection_helper import get_reader_connection
+from ..utils.connection_helper import get_reader_connection, to_signature
 from ..utils.rpc_client import RpcClient
 from ..utils.concurrency import run_with_concurrency
 from ..utils.rate_limiter import create_rate_limiter
@@ -11,7 +11,7 @@ from .reader_utils import decode_reader_instruction
 
 
 def _extract_anchor_instruction(tx, expected_name: str) -> dict | None:
-    message = tx.transaction.message
+    message = tx.transaction.transaction.message
     account_keys = message.account_keys
 
     for ix in message.instructions:
@@ -24,7 +24,7 @@ def _extract_anchor_instruction(tx, expected_name: str) -> dict | None:
 
 
 def _extract_post_chunk(tx) -> list[dict]:
-    message = tx.transaction.message
+    message = tx.transaction.transaction.message
     account_keys = message.account_keys
     chunks = []
 
@@ -117,7 +117,7 @@ async def read_session_result(
     async def worker(entry, _index):
         if limiter:
             await limiter.wait()
-        resp = await connection.get_transaction(entry.signature, max_supported_transaction_version=1)
+        resp = await connection.get_transaction(to_signature(entry.signature), max_supported_transaction_version=1)
         tx = resp.value
         if not tx:
             return
@@ -164,7 +164,7 @@ async def read_linked_list_result(
             raise ValueError("linked list loop detected")
         visited.add(cursor)
 
-        resp = await connection.get_transaction(cursor, max_supported_transaction_version=1)
+        resp = await connection.get_transaction(to_signature(cursor), max_supported_transaction_version=1)
         tx = resp.value
         if not tx:
             raise ValueError("linked list transaction not found")

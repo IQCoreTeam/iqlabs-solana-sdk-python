@@ -1,11 +1,12 @@
 import json
 from typing import Any
 
+import based58
 from solders.pubkey import Pubkey
 
 from ...coder import decode_account, decode_instruction
 from ...contract import get_session_pda, get_user_pda
-from ..utils.connection_helper import get_connection
+from ..utils.connection_helper import get_connection, to_signature
 from ..utils.rate_limiter import create_rate_limiter
 from ..utils.session_speed import SessionSpeedOption, resolve_session_config
 from .reader_context import reader_context
@@ -24,13 +25,17 @@ def decode_reader_instruction(ix, account_keys: list[Pubkey]) -> dict | None:
     if program_id != reader_context.anchor_program_id:
         return None
     try:
-        return decode_instruction(bytes(ix.data))
+        # UiCompiledInstruction.data is a base58 string under the json encoding
+        # returned by solana-py>=0.36; decode it to the raw instruction bytes.
+        raw = ix.data
+        data = bytes(raw) if isinstance(raw, (bytes, bytearray)) else based58.b58decode(raw.encode())
+        return decode_instruction(data)
     except Exception:
         return None
 
 
 def decode_user_inventory_code_in(tx) -> dict:
-    message = tx.transaction.message
+    message = tx.transaction.transaction.message
     account_keys = message.account_keys
 
     for ix in message.instructions:
@@ -123,14 +128,14 @@ async def fetch_user_connections(
         if rate_limiter:
             await rate_limiter.wait()
         try:
-            resp = await connection.get_transaction(sig.signature, max_supported_transaction_version=1)
+            resp = await connection.get_transaction(to_signature(sig.signature), max_supported_transaction_version=1)
             tx = resp.value
         except Exception:
             continue
         if not tx:
             continue
 
-        message = tx.transaction.message
+        message = tx.transaction.transaction.message
         account_keys = message.account_keys
 
         for ix in message.instructions:
