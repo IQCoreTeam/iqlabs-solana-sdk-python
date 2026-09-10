@@ -30,7 +30,7 @@ class RpcClient:
     async def get_signatures_for_address(self, pubkey: Pubkey, before: str | None = None, limit: int | None = None):
         return await self._connection.get_signatures_for_address(pubkey, before=before, limit=limit)
 
-    async def get_transaction(self, signature: str, max_supported_transaction_version: int = 0) -> GetTransactionResp:
+    async def get_transaction(self, signature: str, max_supported_transaction_version: int = 1) -> GetTransactionResp:
         return await self._connection.get_transaction(
             to_signature(signature), max_supported_transaction_version=max_supported_transaction_version
         )
@@ -42,7 +42,7 @@ class RpcClient:
         until: str | None = None,
         limit: int | None = None,
         commitment: str | None = None,
-        max_supported_transaction_version: int = 0,
+        max_supported_transaction_version: int = 1,
     ) -> list:
         if not self.helius_enhanced_enabled():
             raise RuntimeError("get_transactions_for_address requires a Helius RPC")
@@ -55,7 +55,7 @@ class RpcClient:
         pubkey: Pubkey,
         before: str | None = None,
         limit: int = 1000,
-        max_supported_transaction_version: int = 0,
+        max_supported_transaction_version: int = 1,
     ) -> list | None:
         if not self.helius_enhanced_enabled():
             return None
