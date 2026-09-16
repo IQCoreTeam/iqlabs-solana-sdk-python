@@ -41,6 +41,7 @@ Repository = "https://github.com/IQCoreTeam/iqlabs-solana-sdk-python"
 
 [project.optional-dependencies]
 dev = [
+    "anchorpy[pytest]>=0.19.0",
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
 ]
